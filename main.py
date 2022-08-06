@@ -9,6 +9,7 @@ import fire
 def train(data_file, label_file, save_path,
           pretrained_path=None, **kwargs):
 
+    print(kwargs)
     batch_size = kwargs.pop('batch_size', 128)
     infer_batch_size = kwargs.pop('infer_batch_size', batch_size)
     epochs = kwargs.pop('epochs', 100)
