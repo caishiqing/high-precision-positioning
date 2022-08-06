@@ -29,7 +29,7 @@ def train(data_file, label_file, **kwargs):
                                                     monitor='val_loss')
     model = build_model(x.shape[1:], dropout=0.1)
     model.compile(optimizer=tf.keras.optimizers.Adam(kwargs.pop('learning_rate', 1e-3)),
-                  loss=tf.keras.losses.mse)
+                  loss=tf.keras.losses.mae)
     model.summary()
     model.fit(x=train_dataset,
               epochs=kwargs.pop('epochs', 10),
