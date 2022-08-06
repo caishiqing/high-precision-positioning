@@ -31,6 +31,7 @@ def train(data_file, label_file, **kwargs):
     model.compile(optimizer=tf.keras.optimizers.Adam(kwargs.pop('learning_rate', 1e-3)),
                   loss=tf.keras.losses.mse)
     model.fit(x=train_dataset,
+              epochs=kwargs.pop('epochs', 10),
               validation_data=valid_dataset,
               callbacks=[checkpoint])
 
