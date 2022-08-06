@@ -6,7 +6,6 @@ import fire
 
 
 def train(data_file, label_file, **kwargs):
-    augment = MaskBS(18, 4, 18)
     x, y = load_data(data_file, label_file)
     x_train, x_test, y_train, y_test = train_test_split(
         x, y, test_size=kwargs.pop('test_size', 0.2))
@@ -15,6 +14,7 @@ def train(data_file, label_file, **kwargs):
     infer_batch_size = kwargs.pop('infer_batch_size', batch_size)
 
     autoturn = tf.data.AUTOTUNE
+    augment = MaskBS(18, 4, 18)
     train_dataset = tf.data.Dataset.from_tensor_slices(
         (x_train, y_train)
     ).map(augment, num_parallel_calls=autoturn).batch(batch_size)
@@ -27,9 +27,10 @@ def train(data_file, label_file, **kwargs):
                                                     save_best_only=True,
                                                     mode='min',
                                                     monitor='val_loss')
-    model = build_model((78, 2, 256), dropout=0.1)
+    model = build_model(x.shape[1:], dropout=0.1)
     model.compile(optimizer=tf.keras.optimizers.Adam(kwargs.pop('learning_rate', 1e-3)),
                   loss=tf.keras.losses.mse)
+    model.summary()
     model.fit(x=train_dataset,
               epochs=kwargs.pop('epochs', 10),
               validation_data=valid_dataset,
