@@ -4,8 +4,11 @@ import tensorflow as tf
 
 class SelfAttention(layers.MultiHeadAttention):
     def call(self, x, mask=None, training=None):
+        attention_mask = tf.logical_and(mask[:, :, tf.newaxis],
+                                        mask[:, tf.newaxis, :])
+
         return super(SelfAttention, self).call(
-            x, x, attention_mask=mask, training=training)
+            x, x, attention_mask=attention_mask, training=training)
 
     def compute_mask(self, x, mask=None):
         if mask is not None:
