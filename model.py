@@ -78,27 +78,74 @@ def Residual(fn, res, dropout=0.0):
     x = fn(res)
     x = layers.Dropout(dropout)(x)
     x = layers.Add()([res, x])
-    x = layers.LayerNormalization()(x)
     return x
 
 
 def CIRNet(x):
     x = layers.TimeDistributed(layers.Conv1D(8, 3, padding="same"))(x)
     x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
+    x = Residual(
+        tf.keras.Sequential(
+            layers=[
+                layers.TimeDistributed(layers.Conv1D(8, 1, padding='same')),
+                layers.TimeDistributed(layers.BatchNormalization()),
+                layers.TimeDistributed(layers.LeakyReLU()),
+                layers.TimeDistributed(layers.Conv1D(8, 3, padding='same'))
+            ]
+        ),
+        x
+    )
     x = layers.BatchNormalization()(x)
     x = layers.LeakyReLU()(x)
+
     x = layers.TimeDistributed(layers.Conv1D(16, 3, padding="same"))(x)
     x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
+    x = Residual(
+        tf.keras.Sequential(
+            layers=[
+                layers.TimeDistributed(layers.Conv1D(16, 1, padding='same')),
+                layers.TimeDistributed(layers.BatchNormalization()),
+                layers.TimeDistributed(layers.LeakyReLU()),
+                layers.TimeDistributed(layers.Conv1D(16, 3, padding='same'))
+            ]
+        ),
+        x
+    )
     x = layers.BatchNormalization()(x)
     x = layers.LeakyReLU()(x)
+
     x = layers.TimeDistributed(layers.Conv1D(32, 3, padding="same"))(x)
     x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
+    x = Residual(
+        tf.keras.Sequential(
+            layers=[
+                layers.TimeDistributed(layers.Conv1D(32, 1, padding='same')),
+                layers.TimeDistributed(layers.BatchNormalization()),
+                layers.TimeDistributed(layers.LeakyReLU()),
+                layers.TimeDistributed(layers.Conv1D(32, 3, padding='same'))
+            ]
+        ),
+        x
+    )
     x = layers.BatchNormalization()(x)
     x = layers.LeakyReLU()(x)
+
     x = layers.TimeDistributed(layers.Conv1D(64, 3, padding="same"))(x)
     x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
+    x = Residual(
+        tf.keras.Sequential(
+            layers=[
+                layers.TimeDistributed(layers.Conv1D(64, 1, padding='same')),
+                layers.TimeDistributed(layers.BatchNormalization()),
+                layers.TimeDistributed(layers.LeakyReLU()),
+                layers.TimeDistributed(layers.Conv1D(64, 3, padding='same'))
+            ]
+        ),
+        x
+    )
     x = layers.BatchNormalization()(x)
     x = layers.LeakyReLU()(x)
+
     x = layers.TimeDistributed(layers.Flatten())(x)
     return x
 
@@ -108,7 +155,7 @@ def build_model(input_shape,
                 embed_dim=256,
                 hidden_dim=512,
                 num_heads=8,
-                num_attention_layers=6,
+                num_attention_layers=9,
                 dropout=0.0):
 
     assert embed_dim % num_heads == 0
@@ -128,6 +175,7 @@ def build_model(input_shape,
 
     for _ in range(num_attention_layers):
         h = Residual(SelfAttention(num_heads, dim_per_head, dropout=dropout), h)
+        h = layers.LayerNormalization()(h)
         h = Residual(
             tf.keras.Sequential(
                 layers=[
@@ -137,6 +185,7 @@ def build_model(input_shape,
             ),
             h
         )
+        h = layers.LayerNormalization()(h)
 
     h = layers.Lambda(lambda x: x[:, 0, :])(h)
     y = layers.Dense(output_shape)(h)

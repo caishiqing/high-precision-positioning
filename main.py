@@ -45,7 +45,7 @@ def train(data_file, label_file, save_path,
     model.compile(optimizer=optimizer, loss=tf.keras.losses.mae)
     model.summary()
     model.fit(x=train_dataset,
-              epochs=kwargs.pop('epochs', 10),
+              epochs=epochs,
               validation_data=valid_dataset,
               callbacks=[checkpoint])
 
