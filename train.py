@@ -56,7 +56,6 @@ class TrainEngine:
         x_valid, y_valid = valid_data
         x_valid = np.vstack([x_valid] * self.valid_augment_times)
         y_valid = np.vstack([y_valid] * self.valid_augment_times)
-        del valid_data[0], valid_data[1]
 
         autoturn = tf.data.AUTOTUNE
         augment = MaskBS(18, 4, 18)
