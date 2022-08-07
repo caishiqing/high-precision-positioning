@@ -75,7 +75,7 @@ class TrainEngine:
                                decay_steps=total_steps-int(total_steps * 0.1),
                                initial_learning_rate=self.learning_rate)
 
-        model = build_model(x.shape[1:], dropout=0.1)
+        model = build_model(x_train.shape[1:], dropout=0.1)
         if pretrained_path is not None:
             model.load_weights(pretrained_path)
 
