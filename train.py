@@ -68,6 +68,7 @@ class TrainEngine:
 
         checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath=save_path,
                                                         save_best_only=True,
+                                                        save_weights_only=True,
                                                         mode='min',
                                                         monitor='val_loss')
 
