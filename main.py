@@ -1,7 +1,7 @@
 from sklearn.model_selection import train_test_split
 from train import TrainEngine, load_data
 from multiprocessing import Process
-import tensorflow as tf
+import numpy as np
 import fire
 
 
@@ -28,6 +28,18 @@ def train(data_file, label_file, save_path,
                             ))
     train_process.start()
     train_process.join()
+
+
+def test(data_file, label_file, model_path):
+    from model import build_model
+
+    x, y = load_data(data_file, label_file)
+    x = x[:len(y)]
+    model = build_model(input_shape=x.shape[1:])
+    model.load_weights(model_path)
+    pred = model.predict(x)
+    rmse = np.mean(np.math.sqrt(np.sum((y - pred) ** 2, axis=-1)))
+    return rmse
 
 
 if __name__ == '__main__':
