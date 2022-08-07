@@ -78,6 +78,7 @@ class TrainEngine:
 
         model = build_model(x_train.shape[1:], dropout=0.1)
         if pretrained_path is not None:
+            print("Load pretrained weights from {}".format(pretrained_path))
             model.load_weights(pretrained_path)
 
         model.compile(optimizer=optimizer, loss=tf.keras.losses.mae)
