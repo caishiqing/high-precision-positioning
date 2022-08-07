@@ -49,8 +49,8 @@ class TrainEngine:
         self.learning_rate = learning_rate
         self.valid_augment_times = valid_augment_times
 
-    def train(self, train_data, valid_data,
-              save_path, pretrained_path=None):
+    def __call__(self, train_data, valid_data,
+                 save_path, pretrained_path=None):
 
         x_train, y_train = train_data
         x_valid, y_valid = valid_data
@@ -86,7 +86,7 @@ class TrainEngine:
                   validation_data=valid_dataset,
                   validation_batch_size=self.infer_batch_size,
                   callbacks=[checkpoint])
-        
+
         model.load_weights(save_path)
         return model
 
