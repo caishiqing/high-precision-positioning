@@ -31,7 +31,7 @@ def train(data_file, label_file, save_path,
 
 
 def test(data_file, label_file, model_path):
-    from model import build_model
+    from modelDesign_1 import build_model
 
     x, y = load_data(data_file, label_file)
     x = x[:len(y)]
