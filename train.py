@@ -1,5 +1,5 @@
 from optimizer import AdamWarmup
-from model import build_model
+from modelDesign_1 import build_model
 import tensorflow as tf
 import numpy as np
 import random
@@ -41,13 +41,19 @@ class TrainEngine:
                  infer_batch_size,
                  epochs=100,
                  learning_rate=1e-3,
-                 valid_augment_times=5):
+                 valid_augment_times=5,
+                 **model_params):
 
         self.batch_size = batch_size
         self.infer_batch_size = infer_batch_size
         self.epochs = epochs
         self.learning_rate = learning_rate
         self.valid_augment_times = valid_augment_times
+        self.embed_dim = model_params.get('embed_dim', 256)
+        self.hidden_dim = model_params.get('hidden_dim', 512)
+        self.num_heads = model_params.get('num_heads', 8)
+        self.num_attnetion_layers = model_params.get('num_attention_layers', 6)
+        self.dropout = model_params.get('dropout', 0.1)
 
     def __call__(self, train_data, valid_data,
                  save_path, pretrained_path=None):
@@ -76,7 +82,13 @@ class TrainEngine:
                                decay_steps=total_steps-int(total_steps * 0.1),
                                initial_learning_rate=self.learning_rate)
 
-        model = build_model(x_train.shape[1:], dropout=0.1)
+        model = build_model(x_train.shape[1:], 2,
+                            embed_dim=self.embed_dim,
+                            hidden_dim=self.hidden_dim,
+                            num_heads=self.num_heads,
+                            num_attention_layers=self.num_attnetion_layers,
+                            dropout=self.dropout)
+
         if pretrained_path is not None:
             print("Load pretrained weights from {}".format(pretrained_path))
             model.load_weights(pretrained_path)
