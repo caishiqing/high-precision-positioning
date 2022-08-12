@@ -326,6 +326,7 @@ def build_model(input_shape,
 
 tf.keras.utils.get_custom_objects().update(
     {
+        'MultiHeadAttention': MultiHeadAttention,
         'SelfAttention': SelfAttention,
         'AntennaMasking': AntennaMasking,
         'AntennaEmbedding': AntennaEmbedding
@@ -333,14 +334,13 @@ tf.keras.utils.get_custom_objects().update(
 )
 
 
-def Model_2(input_shape, output_shape):
+def Model_1(input_shape, output_shape):
     model = build_model(input_shape,
                         output_shape,
                         embed_dim=256,
                         hidden_dim=512,
                         num_heads=8,
-                        num_attention_layers=6,
-                        dropout=0.1)
+                        num_attention_layers=6)
     return model
 
 
