@@ -78,7 +78,7 @@ class MultiHeadAttention(layers.Layer):
         return tf.nn.softmax(x, axis=axis)
 
     def _compute_attention(self, q, k, v, attention_mask=None, training=None):
-        attention_score = tf.matmul(q, k, transpose_b=True)
+        attention_score = tf.matmul(q, k, transpose_b=True) / self.sqrt_dim
         attention_proba = self._mask_softmax(attention_score, attention_mask)
         attention_proba = self.drop(attention_proba, training=training)
         attention_output = tf.matmul(attention_proba, v)
