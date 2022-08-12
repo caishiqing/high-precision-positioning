@@ -290,7 +290,6 @@ def build_model(input_shape,
                 dropout=0.0):
 
     assert embed_dim % num_heads == 0
-    dim_per_head = embed_dim // num_heads
 
     x = layers.Input(shape=input_shape)
     h = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
@@ -305,7 +304,7 @@ def build_model(input_shape,
     h = layers.LeakyReLU()(h)
 
     for _ in range(num_attention_layers):
-        h = Residual(SelfAttention(num_heads, dim_per_head, dropout=dropout), h)
+        h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
         h = layers.LayerNormalization()(h)
         h = Residual(
             tf.keras.Sequential(
@@ -334,7 +333,7 @@ tf.keras.utils.get_custom_objects().update(
 )
 
 
-def Model_1(input_shape, output_shape):
+def Model_2(input_shape, output_shape):
     model = build_model(input_shape,
                         output_shape,
                         embed_dim=256,
