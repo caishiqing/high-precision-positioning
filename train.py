@@ -91,7 +91,7 @@ class TrainEngine:
         y_valid = np.vstack([y_valid] * self.valid_augment_times)
 
         autoturn = tf.data.AUTOTUNE
-        #augment = MaskBS(18, self.min_bs, self.max_bs)
+        # augment = MaskBS(18, self.min_bs, self.max_bs)
         augment = MaskBS4(18, self.mask_rate)
         train_dataset = tf.data.Dataset.from_tensor_slices(
             train_data).map(augment, num_parallel_calls=autoturn).batch(self.batch_size)

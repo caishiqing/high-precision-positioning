@@ -283,11 +283,12 @@ def CIRNet(x):
     return x
 
 
-def save(cls, filepath, overwrite=True):
+def save(cls, filepath, overwrite=True, **kwargs):
     """ save model without optimizer states """
+    kwargs['include_optimizer'] = False
     tf.keras.models.save_model(cls, filepath,
                                overwrite=overwrite,
-                               include_optimizer=False)
+                               **kwargs)
 
 
 def build_model(input_shape,
