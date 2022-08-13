@@ -24,31 +24,11 @@ class MaskBS(object):
     def _mask_bs(self):
         mask = np.ones(self.total_bs, dtype=np.float32)
         if self.mask_rate > 0 and random.random() < self.mask_rate:
-            num_zeros = self.total_bs - random.randint(self.min_bs, self.max_bs)
-            zeros = random.sample(self.bs_ids, num_zeros)
+            # num_zeros = self.total_bs - random.randint(self.min_bs, self.max_bs)
+            # zeros = random.sample(self.bs_ids, num_zeros)
+            zeros = [0, 5, 12, 17]
             mask[zeros] = 0
 
-        return mask
-
-    def __call__(self, x, y):
-        mask = tf.py_function(self._mask_bs, [], tf.float32)
-        mask = mask[:, tf.newaxis, tf.newaxis, tf.newaxis]
-        mask = tf.tile(mask, [1, 4, 1, 1])
-        mask = tf.reshape(mask, [-1, 1, 1])
-        x *= mask
-        return x, y
-
-
-class MaskBS4(object):
-    def __init__(self, total_bs, rate=0.0):
-        self.total_bs = total_bs
-        self.rate = rate
-        self.bs_ids = list(range(total_bs))
-
-    def _mask_bs(self):
-        mask = np.ones(self.total_bs, dtype=np.float32)
-        if self.rate > 0 and random.random() < self.rate:
-            mask[[0, 5, 12, 17]] = 0
         return mask
 
     def __call__(self, x, y):
@@ -127,9 +107,9 @@ class TrainEngine:
 
 
 if __name__ == '__main__':
-    x = np.random.random((1000, 72, 2, 4)).astype(np.float32)
+    x = np.random.random((1000, 16, 2, 4)).astype(np.float32)
     y = np.random.random((1000, 2)).astype(np.float32)
-    augment = MaskBS4(18, 0.5)
+    augment = MaskBS(4, 1, 2, 0.5)
     dataset = tf.data.Dataset.from_tensor_slices((x, y))
     dataset = dataset.map(augment).batch(len(x))
     xx, yy = list(dataset)[0]
