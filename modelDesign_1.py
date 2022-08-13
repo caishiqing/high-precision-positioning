@@ -346,7 +346,7 @@ tf.keras.utils.get_custom_objects().update(
 
 
 def Model_1(input_shape, output_shape):
-    return = build_model(input_shape, output_shape)
+    return build_model(input_shape, output_shape)
 
 
 if __name__ == '__main__':
