@@ -356,5 +356,6 @@ def Model_1(input_shape, output_shape):
 
 if __name__ == '__main__':
     model = Model_1((72, 2, 256), 2)
-    # model.load_weights('modelSubmit_1.h5')
-    tf.keras.models.load_model('modelSubmit_1.h5')
+    model.load_weights('modelSubmit_1.h5')
+    model.save('modelSubmit_1.h5')
+    model = tf.keras.models.load_model('modelSubmit_1.h5')

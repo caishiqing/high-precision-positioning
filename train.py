@@ -35,15 +35,37 @@ class MaskBS(object):
         return x, y
 
 
+class MaskBS4(object):
+    def __init__(self, total_bs, rate=0.0):
+        self.total_bs = total_bs
+        self.rate = rate
+        self.bs_ids = list(range(total_bs))
+
+    def _mask_bs(self):
+        mask = np.ones(self.total_bs, dtype=np.float32)
+        if self.rate > 0 and random.random() < self.rate:
+            mask[[0, 5, 12, 17]] = 0
+        return mask
+
+    def __call__(self, x, y):
+        mask = tf.py_function(self._mask_bs, [], tf.float32)
+        mask = mask[:, tf.newaxis, tf.newaxis, tf.newaxis]
+        mask = tf.tile(mask, [1, 4, 1, 1])
+        mask = tf.reshape(mask, [-1, 1, 1])
+        x *= mask
+        return x, y
+
+
 class TrainEngine:
     def __init__(self,
                  batch_size,
                  infer_batch_size,
                  epochs=100,
                  learning_rate=1e-3,
-                 valid_augment_times=5,
+                 valid_augment_times=1,
                  min_bs=4,
                  max_bs=18,
+                 mask_rate=0.0,
                  **model_params):
 
         self.batch_size = batch_size
@@ -53,6 +75,7 @@ class TrainEngine:
         self.valid_augment_times = valid_augment_times
         self.min_bs = int(min_bs)
         self.max_bs = int(max_bs)
+        self.mask_rate = float(mask_rate)
         self.embed_dim = model_params.get('embed_dim', 256)
         self.hidden_dim = model_params.get('hidden_dim', 512)
         self.num_heads = model_params.get('num_heads', 8)
@@ -68,7 +91,8 @@ class TrainEngine:
         y_valid = np.vstack([y_valid] * self.valid_augment_times)
 
         autoturn = tf.data.AUTOTUNE
-        augment = MaskBS(18, self.min_bs, self.max_bs)
+        #augment = MaskBS(18, self.min_bs, self.max_bs)
+        augment = MaskBS4(18, self.mask_rate)
         train_dataset = tf.data.Dataset.from_tensor_slices(
             train_data).map(augment, num_parallel_calls=autoturn).batch(self.batch_size)
         valid_dataset = tf.data.Dataset.from_tensor_slices(
@@ -110,10 +134,10 @@ class TrainEngine:
 
 
 if __name__ == '__main__':
-    x = np.random.random((1000, 72, 2, 256)).astype(np.float32)
+    x = np.random.random((1000, 72, 2, 4)).astype(np.float32)
     y = np.random.random((1000, 2)).astype(np.float32)
-    augment = MaskBS(18, 4, 18)
+    augment = MaskBS4(18, 0.5)
     dataset = tf.data.Dataset.from_tensor_slices((x, y))
-    dataset = dataset.map(augment).batch(len(x) * 5)
+    dataset = dataset.map(augment).batch(len(x))
     xx, yy = list(dataset)[0]
     pass
