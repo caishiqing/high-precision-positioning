@@ -14,16 +14,20 @@ def load_data(x_file, y_file):
 
 
 class MaskBS(object):
-    def __init__(self, total_bs, min_bs=4, max_bs=18):
+    def __init__(self, total_bs, min_bs=4, max_bs=18, mask_rate=0.0):
         self.total_bs = total_bs
         self.min_bs = min_bs
         self.max_bs = max_bs
+        self.mask_rate = mask_rate
         self.bs_ids = list(range(total_bs))
 
     def _mask_bs(self):
-        mask = np.zeros(self.total_bs, dtype=np.float32)
-        non_zeros = random.sample(self.bs_ids, random.randint(self.min_bs, self.max_bs))
-        mask[non_zeros] = 1
+        mask = np.ones(self.total_bs, dtype=np.float32)
+        if self.mask_rate > 0 and random.random() < self.mask_rate:
+            num_zeros = self.total_bs - random.randint(self.min_bs, self.max_bs)
+            zeros = random.sample(self.bs_ids, num_zeros)
+            mask[zeros] = 0
+
         return mask
 
     def __call__(self, x, y):
@@ -65,16 +69,18 @@ class TrainEngine:
                  valid_augment_times=1,
                  dropout=0.0,
                  min_bs=4,
-                 max_bs=18):
+                 max_bs=18,
+                 mask_rate=0.0):
 
-        self.batch_size = batch_size
-        self.infer_batch_size = infer_batch_size
-        self.epochs = epochs
-        self.learning_rate = learning_rate
-        self.valid_augment_times = valid_augment_times
-        self.dropout = dropout
+        self.batch_size = int(batch_size)
+        self.infer_batch_size = int(infer_batch_size)
+        self.epochs = int(epochs)
+        self.learning_rate = float(learning_rate)
+        self.valid_augment_times = int(valid_augment_times)
+        self.dropout = float(dropout)
         self.min_bs = int(min_bs)
         self.max_bs = int(max_bs)
+        self.mask_rate = float(mask_rate)
 
     def __call__(self, train_data, valid_data,
                  save_path, pretrained_path=None):
@@ -85,7 +91,7 @@ class TrainEngine:
         y_valid = np.vstack([y_valid] * self.valid_augment_times)
 
         autoturn = tf.data.AUTOTUNE
-        augment = MaskBS(18, self.min_bs, self.max_bs)
+        augment = MaskBS(18, self.min_bs, self.max_bs, self.mask_rate)
         train_dataset = tf.data.Dataset.from_tensor_slices(
             train_data).map(augment, num_parallel_calls=autoturn).batch(self.batch_size)
         valid_dataset = tf.data.Dataset.from_tensor_slices(

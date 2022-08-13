@@ -20,7 +20,8 @@ def train(data_file, label_file, save_path,
                                valid_augment_times=kwargs.pop('test_augment_times', 5),
                                dropout=kwargs.get('dropout', 0.0),
                                min_bs=kwargs.pop('min_bs', 4),
-                               max_bs=kwargs.pop('max_bs', 18))
+                               max_bs=kwargs.pop('max_bs', 18),
+                               mask_rate=kwargs.pop('mask_rate', 0.0))
 
     train_process = Process(target=train_engine,
                             args=(

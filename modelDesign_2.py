@@ -296,7 +296,7 @@ def build_model(input_shape,
                 embed_dim=256,
                 hidden_dim=512,
                 num_heads=8,
-                num_attention_layers=9,
+                num_attention_layers=6,
                 dropout=0.0):
 
     assert embed_dim % num_heads == 0
