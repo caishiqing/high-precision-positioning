@@ -346,13 +346,7 @@ tf.keras.utils.get_custom_objects().update(
 
 
 def Model_2(input_shape, output_shape):
-    model = build_model(input_shape,
-                        output_shape,
-                        embed_dim=256,
-                        hidden_dim=512,
-                        num_heads=8,
-                        num_attention_layers=6)
-    return model
+    return build_model(input_shape, output_shape)
 
 
 if __name__ == '__main__':

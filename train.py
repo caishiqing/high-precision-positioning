@@ -63,24 +63,18 @@ class TrainEngine:
                  epochs=100,
                  learning_rate=1e-3,
                  valid_augment_times=1,
+                 dropout=0.0,
                  min_bs=4,
-                 max_bs=18,
-                 mask_rate=0.0,
-                 **model_params):
+                 max_bs=18):
 
         self.batch_size = batch_size
         self.infer_batch_size = infer_batch_size
         self.epochs = epochs
         self.learning_rate = learning_rate
         self.valid_augment_times = valid_augment_times
+        self.dropout = dropout
         self.min_bs = int(min_bs)
         self.max_bs = int(max_bs)
-        self.mask_rate = float(mask_rate)
-        self.embed_dim = model_params.get('embed_dim', 256)
-        self.hidden_dim = model_params.get('hidden_dim', 512)
-        self.num_heads = model_params.get('num_heads', 8)
-        self.num_attnetion_layers = model_params.get('num_attention_layers', 6)
-        self.dropout = model_params.get('dropout', 0.1)
 
     def __call__(self, train_data, valid_data,
                  save_path, pretrained_path=None):
@@ -91,8 +85,7 @@ class TrainEngine:
         y_valid = np.vstack([y_valid] * self.valid_augment_times)
 
         autoturn = tf.data.AUTOTUNE
-        # augment = MaskBS(18, self.min_bs, self.max_bs)
-        augment = MaskBS4(18, self.mask_rate)
+        augment = MaskBS(18, self.min_bs, self.max_bs)
         train_dataset = tf.data.Dataset.from_tensor_slices(
             train_data).map(augment, num_parallel_calls=autoturn).batch(self.batch_size)
         valid_dataset = tf.data.Dataset.from_tensor_slices(

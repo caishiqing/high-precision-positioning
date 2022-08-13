@@ -18,14 +18,9 @@ def train(data_file, label_file, save_path,
                                epochs=kwargs.pop('epochs', 100),
                                learning_rate=kwargs.pop('learning_rate', 1e-3),
                                valid_augment_times=kwargs.pop('test_augment_times', 5),
+                               dropout=kwargs.get('dropout', 0.0),
                                min_bs=kwargs.pop('min_bs', 4),
-                               max_bs=kwargs.pop('max_bs', 18),
-                               mask_rate=kwargs.pop('mask_rate', 0.0),
-                               embed_dim=kwargs.pop('embed_dim', 256),
-                               hidden_dim=kwargs.pop('hidden_dim', 512),
-                               num_heads=kwargs.pop('num_heads', 8),
-                               num_attention_layers=kwargs.pop('num_attention_layers', 6),
-                               dropout=kwargs.get('dropout', 0.0))
+                               max_bs=kwargs.pop('max_bs', 18))
 
     train_process = Process(target=train_engine,
                             args=(
