@@ -103,12 +103,7 @@ class TrainEngine:
                                decay_steps=total_steps-int(total_steps * 0.1),
                                initial_learning_rate=self.learning_rate)
 
-        model = build_model(x_train.shape[1:], 2,
-                            embed_dim=self.embed_dim,
-                            hidden_dim=self.hidden_dim,
-                            num_heads=self.num_heads,
-                            num_attention_layers=self.num_attnetion_layers,
-                            dropout=self.dropout)
+        model = build_model(x_train.shape[1:], 2, dropout=self.dropout)
 
         if pretrained_path is not None:
             print("Load pretrained weights from {}".format(pretrained_path))
