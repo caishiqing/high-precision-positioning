@@ -1,5 +1,6 @@
 from tensorflow.keras import layers
 import tensorflow as tf
+import types
 
 
 class MultiHeadAttention(layers.Layer):
@@ -200,7 +201,8 @@ class AntennaEmbedding(layers.Layer):
         if mask is None:
             return None
 
-        cls_mask = tf.cast(tf.ones(shape=(tf.shape(mask)[0], 1)), mask.dtype)
+        #cls_mask = tf.cast(tf.ones(shape=(tf.shape(mask)[0], 1)), mask.dtype)
+        cls_mask = tf.ones_like(mask, dtype=mask.dtype)[:, :1]
         mask = tf.concat([cls_mask, mask], axis=1)
         return mask
 
@@ -281,6 +283,13 @@ def CIRNet(x):
     return x
 
 
+def save(cls, filepath, overwrite=True):
+    """ save model without optimizer states """
+    tf.keras.models.save_model(cls, filepath,
+                               overwrite=overwrite,
+                               include_optimizer=False)
+
+
 def build_model(input_shape,
                 output_shape=2,
                 embed_dim=256,
@@ -321,6 +330,7 @@ def build_model(input_shape,
     y = layers.Dense(output_shape)(h)
 
     model = tf.keras.Model(x, y)
+    model.save = types.MethodType(save, model)
     return model
 
 
@@ -345,11 +355,6 @@ def Model_1(input_shape, output_shape):
 
 
 if __name__ == '__main__':
-    import numpy as np
-    x = np.random.random((2, 5, 4))
-    x[0, 3, :] = 0
-    x[1, 1, :] = 0
-    x = tf.constant(x)
-    x = tf.keras.layers.Masking()(x)
-    x = SelfAttention(2, 4)(x)
-    print(x._keras_mask)
+    model = Model_1((72, 2, 256), 2)
+    # model.load_weights('modelSubmit_1.h5')
+    tf.keras.models.load_model('modelSubmit_1.h5')
