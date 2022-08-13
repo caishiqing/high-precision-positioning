@@ -104,7 +104,6 @@ class TrainEngine:
                                initial_learning_rate=self.learning_rate)
 
         model = build_model(x_train.shape[1:], 2, dropout=self.dropout)
-
         if pretrained_path is not None:
             print("Load pretrained weights from {}".format(pretrained_path))
             model.load_weights(pretrained_path)
