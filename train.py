@@ -1,3 +1,4 @@
+from tabnanny import check
 from optimizer import AdamWarmup
 from modelDesign_1 import build_model
 import tensorflow as tf
@@ -104,6 +105,7 @@ class TrainEngine:
                   callbacks=[checkpoint],
                   verbose=verbose)
 
+        print(checkpoint.best)
         model.load_weights(save_path)
         return model
 
