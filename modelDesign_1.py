@@ -221,14 +221,14 @@ def CIRNet(x):
         tf.keras.Sequential(
             layers=[
                 layers.TimeDistributed(layers.Conv1D(8, 1, padding='same')),
-                layers.TimeDistributed(layers.BatchNormalization()),
+                layers.TimeDistributed(layers.BatchNormalization(momentum=0.95)),
                 layers.TimeDistributed(layers.LeakyReLU()),
                 layers.TimeDistributed(layers.Conv1D(8, 3, padding='same'))
             ]
         ),
         x
     )
-    x = layers.BatchNormalization()(x)
+    x = layers.BatchNormalization(momentum=0.95)(x)
     x = layers.LeakyReLU()(x)
 
     x = layers.TimeDistributed(layers.Conv1D(16, 3, padding="same"))(x)
@@ -237,14 +237,14 @@ def CIRNet(x):
         tf.keras.Sequential(
             layers=[
                 layers.TimeDistributed(layers.Conv1D(16, 1, padding='same')),
-                layers.TimeDistributed(layers.BatchNormalization()),
+                layers.TimeDistributed(layers.BatchNormalization(momentum=0.95)),
                 layers.TimeDistributed(layers.LeakyReLU()),
                 layers.TimeDistributed(layers.Conv1D(16, 3, padding='same'))
             ]
         ),
         x
     )
-    x = layers.BatchNormalization()(x)
+    x = layers.BatchNormalization(momentum=0.95)(x)
     x = layers.LeakyReLU()(x)
 
     x = layers.TimeDistributed(layers.Conv1D(32, 3, padding="same"))(x)
@@ -253,14 +253,14 @@ def CIRNet(x):
         tf.keras.Sequential(
             layers=[
                 layers.TimeDistributed(layers.Conv1D(32, 1, padding='same')),
-                layers.TimeDistributed(layers.BatchNormalization()),
+                layers.TimeDistributed(layers.BatchNormalization(momentum=0.95)),
                 layers.TimeDistributed(layers.LeakyReLU()),
                 layers.TimeDistributed(layers.Conv1D(32, 3, padding='same'))
             ]
         ),
         x
     )
-    x = layers.BatchNormalization()(x)
+    x = layers.BatchNormalization(momentum=0.95)(x)
     x = layers.LeakyReLU()(x)
 
     x = layers.TimeDistributed(layers.Conv1D(64, 3, padding="same"))(x)
@@ -269,14 +269,14 @@ def CIRNet(x):
         tf.keras.Sequential(
             layers=[
                 layers.TimeDistributed(layers.Conv1D(64, 1, padding='same')),
-                layers.TimeDistributed(layers.BatchNormalization()),
+                layers.TimeDistributed(layers.BatchNormalization(momentum=0.95)),
                 layers.TimeDistributed(layers.LeakyReLU()),
                 layers.TimeDistributed(layers.Conv1D(64, 3, padding='same'))
             ]
         ),
         x
     )
-    x = layers.BatchNormalization()(x)
+    x = layers.BatchNormalization(momentum=0.95)(x)
     x = layers.LeakyReLU()(x)
 
     x = layers.TimeDistributed(layers.Flatten())(x)
@@ -310,7 +310,7 @@ def build_model(input_shape,
     h = AntennaEmbedding()(h)
 
     h = layers.Dropout(dropout)(h)
-    h = layers.BatchNormalization()(h)
+    h = layers.BatchNormalization(momentum=0.95)(h)
     h = layers.LeakyReLU()(h)
 
     for _ in range(num_attention_layers):
