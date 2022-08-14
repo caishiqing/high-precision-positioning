@@ -20,13 +20,14 @@ class MaskBS(object):
         self.max_bs = max_bs
         self.mask_rate = mask_rate
         self.bs_ids = list(range(total_bs))
+        self.zeros = list(set(range(18)) - set([0, 5, 12, 17]))
 
     def _mask_bs(self):
         mask = np.ones(self.total_bs, dtype=np.float32)
         if self.mask_rate > 0 and random.random() < self.mask_rate:
             # num_zeros = self.total_bs - random.randint(self.min_bs, self.max_bs)
             # zeros = random.sample(self.bs_ids, num_zeros)
-            zeros = [0, 5, 12, 17]
+            zeros = self.zeros
             mask[zeros] = 0
 
         return mask
