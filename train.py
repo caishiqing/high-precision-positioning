@@ -64,7 +64,7 @@ class TrainEngine:
         self.mask_rate = float(mask_rate)
 
     def __call__(self, train_data, valid_data,
-                 save_path, pretrained_path=None):
+                 save_path, pretrained_path=None, verbose=1):
 
         x_train, y_train = train_data
         x_valid, y_valid = valid_data
@@ -101,16 +101,17 @@ class TrainEngine:
                   epochs=self.epochs,
                   validation_data=valid_dataset,
                   validation_batch_size=self.infer_batch_size,
-                  callbacks=[checkpoint])
+                  callbacks=[checkpoint],
+                  verbose=verbose)
 
         model.load_weights(save_path)
         return model
 
 
 if __name__ == '__main__':
-    x = np.random.random((1000, 16, 2, 4)).astype(np.float32)
+    x = np.random.random((1000, 72, 2, 4)).astype(np.float32)
     y = np.random.random((1000, 2)).astype(np.float32)
-    augment = MaskBS(4, 1, 2, 0.5)
+    augment = MaskBS(18, 1, 2, 0.5)
     dataset = tf.data.Dataset.from_tensor_slices((x, y))
     dataset = dataset.map(augment).batch(len(x))
     xx, yy = list(dataset)[0]

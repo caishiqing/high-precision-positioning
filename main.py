@@ -18,7 +18,7 @@ def train(data_file, label_file, save_path,
                                epochs=kwargs.pop('epochs', 100),
                                learning_rate=kwargs.pop('learning_rate', 1e-3),
                                valid_augment_times=kwargs.pop('test_augment_times', 5),
-                               dropout=kwargs.get('dropout', 0.0),
+                               dropout=kwargs.pop('dropout', 0.0),
                                min_bs=kwargs.pop('min_bs', 4),
                                max_bs=kwargs.pop('max_bs', 18),
                                mask_rate=kwargs.pop('mask_rate', 0.0))
@@ -28,7 +28,8 @@ def train(data_file, label_file, save_path,
                                 (x_train, y_train),
                                 (x_valid, y_valid),
                                 save_path,
-                                pretrained_path
+                                pretrained_path,
+                                kwargs.pop('verbose', 1)
                             ))
     train_process.start()
     train_process.join()
