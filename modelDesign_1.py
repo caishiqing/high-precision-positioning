@@ -290,6 +290,7 @@ def save(cls, filepath, overwrite=True, **kwargs):
                                overwrite=overwrite,
                                **kwargs)
 
+
 def gelu(x):
     return 0.5 * x * (1.0 + tf.math.tanh(tf.math.sqrt(2.0 / 3.1415926) * (x + 0.044715 * tf.math.pow(x, 3.0))))
 
@@ -322,7 +323,7 @@ def build_model(input_shape,
         h = Residual(
             tf.keras.Sequential(
                 layers=[
-                    layers.Dense(hidden_dim, activation=gelu),
+                    layers.Dense(hidden_dim, activation='relu'),
                     layers.Dense(embed_dim)
                 ]
             ),
@@ -343,7 +344,8 @@ tf.keras.utils.get_custom_objects().update(
         'MultiHeadAttention': MultiHeadAttention,
         'SelfAttention': SelfAttention,
         'AntennaMasking': AntennaMasking,
-        'AntennaEmbedding': AntennaEmbedding
+        'AntennaEmbedding': AntennaEmbedding,
+        'gelu': gelu
     }
 )
 

@@ -42,6 +42,11 @@ class MaskBS(object):
         return x, y
 
 
+def euclidean_loss(y_true, y_pred):
+    distance = tf.math.sqrt(tf.reduce_sum(tf.pow(y_true-y_pred, 2), axis=-1))
+    return tf.reduce_mean(distance)
+
+
 class TrainEngine:
     def __init__(self,
                  batch_size,
@@ -96,7 +101,7 @@ class TrainEngine:
             print("Load pretrained weights from {}".format(pretrained_path))
             model.load_weights(pretrained_path)
 
-        model.compile(optimizer=optimizer, loss=tf.keras.losses.mae)
+        model.compile(optimizer=optimizer, loss=euclidean_loss)
         model.summary()
         model.fit(x=train_dataset,
                   epochs=self.epochs,

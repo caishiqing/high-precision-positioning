@@ -323,7 +323,7 @@ def build_model(input_shape,
         h = Residual(
             tf.keras.Sequential(
                 layers=[
-                    layers.Dense(hidden_dim, activation=gelu),
+                    layers.Dense(hidden_dim, activation='relu'),
                     layers.Dense(embed_dim)
                 ]
             ),
@@ -344,7 +344,8 @@ tf.keras.utils.get_custom_objects().update(
         'MultiHeadAttention': MultiHeadAttention,
         'SelfAttention': SelfAttention,
         'AntennaMasking': AntennaMasking,
-        'AntennaEmbedding': AntennaEmbedding
+        'AntennaEmbedding': AntennaEmbedding,
+        'gelu': gelu
     }
 )
 
