@@ -295,6 +295,9 @@ def gelu(x):
     return 0.5 * x * (1.0 + tf.math.tanh(tf.math.sqrt(2.0 / 3.1415926) * (x + 0.044715 * tf.math.pow(x, 3.0))))
 
 
+tf.keras.callbacks.Callback
+
+
 def build_model(input_shape,
                 output_shape=2,
                 embed_dim=256,
@@ -311,12 +314,12 @@ def build_model(input_shape,
     h = layers.TimeDistributed(layers.Flatten())(h)
     # h = CIRNet(h)
     h = layers.Dense(embed_dim)(h)
+    h = layers.BatchNormalization()(h)
+    h = layers.Activation('relu')(h)
     h = AntennaMasking()([x, h])
     h = AntennaEmbedding()(h)
-
     h = layers.Dropout(dropout)(h)
     h = layers.BatchNormalization()(h)
-    h = layers.LeakyReLU()(h)
 
     for _ in range(num_attention_layers):
         h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
