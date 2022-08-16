@@ -307,7 +307,7 @@ def build_model(input_shape,
 
     x = layers.Input(shape=input_shape)
     h = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
-    h = layers.Lambda(lambda x: x[:, :, :128, :])(h)
+    # h = layers.Lambda(lambda x: x[:, :, :128, :])(h)
     h = CIRNet(h)
     h = layers.Dense(embed_dim)(h)
     h = AntennaMasking()([x, h])
