@@ -299,13 +299,13 @@ def CIRNet(x, embed_dim=256, dropout=0.0):
     x = RecoverSignal()(x)
     x = layers.TimeDistributed(layers.Flatten())(x)
     x = layers.Dense(embed_dim)(x)
-    x = layers.Dropout(dropout)
+    x = layers.Dropout(dropout)(x)
     x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
     for _ in range(3):
         res = x
         x = layers.Dense(embed_dim)(x)
-        x = layers.Dropout(dropout)
+        x = layers.Dropout(dropout)(x)
         x = layers.Add()([res, x])
         x = layers.BatchNormalization()(x)
         x = layers.Activation('relu')(x)
@@ -366,6 +366,7 @@ tf.keras.utils.get_custom_objects().update(
         'SelfAttention': SelfAttention,
         'AntennaMasking': AntennaMasking,
         'AntennaEmbedding': AntennaEmbedding,
+        'RecoverSignal': RecoverSignal
     }
 )
 
