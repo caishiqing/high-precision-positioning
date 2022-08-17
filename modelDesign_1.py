@@ -296,13 +296,13 @@ class RecoverSignal(layers.Layer):
 
 
 def CIRNet(x, embed_dim=256, dropout=0.0):
-    x = RecoverSignal()(x)
+    # x = RecoverSignal()(x)
     x = layers.TimeDistributed(layers.Flatten())(x)
     x = layers.Dense(embed_dim)(x)
     x = layers.Dropout(dropout)(x)
     x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
-    for _ in range(3):
+    for _ in range(2):
         res = x
         x = layers.Dense(embed_dim)(x)
         x = layers.Dropout(dropout)(x)

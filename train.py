@@ -123,11 +123,9 @@ class Checkpoint(tf.keras.callbacks.ModelCheckpoint):
         super(Checkpoint, self).__init__(filepath, **kwargs)
         self.start_checkpoint_epoch = start_checkpoint_epoch
 
-    def on_epoch_end(self, epoch, logs=None):
-        self.epochs_since_last_save += 1
+    def _save_model(self, epoch, logs):
         if epoch >= self.start_checkpoint_epoch:
-            if self.save_freq == 'epoch':
-                self._save_model(epoch=epoch, logs=logs)
+            super(Checkpoint, self)._save_model(epoch, logs)
 
 
 if __name__ == '__main__':
