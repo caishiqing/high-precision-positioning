@@ -54,6 +54,7 @@ class TrainEngine:
                  epochs=100,
                  learning_rate=1e-3,
                  valid_augment_times=1,
+                 start_checkpoint_epoch=0,
                  dropout=0.0,
                  min_bs=4,
                  max_bs=18,
@@ -64,6 +65,7 @@ class TrainEngine:
         self.epochs = int(epochs)
         self.learning_rate = float(learning_rate)
         self.valid_augment_times = int(valid_augment_times)
+        self.start_checkpoint_epoch = start_checkpoint_epoch
         self.dropout = float(dropout)
         self.min_bs = int(min_bs)
         self.max_bs = int(max_bs)
@@ -85,11 +87,12 @@ class TrainEngine:
             valid_data).map(augment, num_parallel_calls=autoturn).batch(len(x_valid))
         valid_dataset = list(valid_dataset)[0]
 
-        checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath=save_path,
-                                                        save_best_only=True,
-                                                        save_weights_only=False,
-                                                        mode='min',
-                                                        monitor='val_loss')
+        checkpoint = Checkpoint(save_path,
+                                self.start_checkpoint_epoch,
+                                save_best_only=True,
+                                save_weights_only=False,
+                                mode='min',
+                                monitor='val_loss')
 
         total_steps = len(x_train) // self.batch_size * self.epochs
         optimizer = AdamWarmup(warmup_steps=int(total_steps * 0.1),
@@ -113,6 +116,18 @@ class TrainEngine:
         print(checkpoint.best)
         model.load_weights(save_path)
         return model
+
+
+class Checkpoint(tf.keras.callbacks.ModelCheckpoint):
+    def __init__(self, filepath, start_checkpoint_epoch=0, **kwargs):
+        super(Checkpoint, self).__init__(filepath, **kwargs)
+        self.start_checkpoint_epoch = start_checkpoint_epoch
+
+    def on_epoch_end(self, epoch, logs=None):
+        self.epochs_since_last_save += 1
+        if epoch >= self.start_checkpoint_epoch:
+            if self.save_freq == 'epoch':
+                self._save_model(epoch=epoch, logs=logs)
 
 
 if __name__ == '__main__':
