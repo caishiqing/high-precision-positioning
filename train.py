@@ -54,7 +54,6 @@ class TrainEngine:
                  epochs=100,
                  learning_rate=1e-3,
                  valid_augment_times=1,
-                 start_checkpoint_epoch=0,
                  dropout=0.0,
                  min_bs=4,
                  max_bs=18,
@@ -65,7 +64,6 @@ class TrainEngine:
         self.epochs = int(epochs)
         self.learning_rate = float(learning_rate)
         self.valid_augment_times = int(valid_augment_times)
-        self.start_checkpoint_epoch = start_checkpoint_epoch
         self.dropout = float(dropout)
         self.min_bs = int(min_bs)
         self.max_bs = int(max_bs)
