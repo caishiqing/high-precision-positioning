@@ -283,16 +283,20 @@ def Residual(fn, res, dropout=0.0):
 #     return x
 
 
-def RecoverSignal(x):
-    image, real = x[:, :, :, 0], x[:, :, :, 1]
-    amplitude = tf.math.sqrt(tf.pow(image, 2) + tf.pow(real, 2))
-    phase = tf.math.atan(tf.math.divide_no_nan(image, real))
-    x = tf.stack([amplitude, phase], axis=-1)
-    return x
+class RecoverSignal(layers.Layer):
+    def call(self, x):
+        image, real = x[:, :, :, 0], x[:, :, :, 1]
+        amplitude = tf.math.sqrt(tf.pow(image, 2) + tf.pow(real, 2))
+        phase = tf.math.atan(tf.math.divide_no_nan(image, real))
+        x = tf.stack([amplitude, phase], axis=-1)
+        return x
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 def CIRNet(x, embed_dim=256, dropout=0.0):
-    x = layers.Lambda(lambda x: RecoverSignal(x))(x)
+    x = RecoverSignal()(x)
     x = layers.TimeDistributed(layers.Flatten())(x)
     x = layers.Dense(embed_dim)(x)
     x = layers.Dropout(dropout)
