@@ -87,12 +87,11 @@ class TrainEngine:
             valid_data).map(augment, num_parallel_calls=autoturn).batch(len(x_valid))
         valid_dataset = list(valid_dataset)[0]
 
-        checkpoint = Checkpoint(save_path,
-                                self.start_checkpoint_epoch,
-                                save_best_only=True,
-                                save_weights_only=False,
-                                mode='min',
-                                monitor='val_loss')
+        checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
+                                                        save_best_only=True,
+                                                        save_weights_only=False,
+                                                        mode='min',
+                                                        monitor='val_loss')
 
         total_steps = len(x_train) // self.batch_size * self.epochs
         optimizer = AdamWarmup(warmup_steps=int(total_steps * 0.1),
