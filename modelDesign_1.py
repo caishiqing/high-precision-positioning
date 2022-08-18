@@ -295,30 +295,18 @@ class RecoverSignal(layers.Layer):
         return input_shape
 
 
-def CIRNet(x, embed_dim=256, dropout=0.0):
-    # x = RecoverSignal()(x)
-    x = layers.TimeDistributed(layers.Flatten())(x)
-    x = layers.Dense(embed_dim)(x)
-    x = layers.Dropout(dropout)(x)
+def TimeReduction(x):
+    xs = []
+    for xi, filters in zip(tf.split(x, 4, axis=-2), [128, 48, 24, 8]):
+        xi = layers.TimeDistributed(layers.ZeroPadding1D(2))(xi)
+        xi = layers.TimeDistributed(layers.Conv1D(filters, 64))
+        xi = layers.TimeDistributed(layers.GlobalMaxPool1D())(xi)
+        xs.append(xs)
+
+    x = layers.Concatenate(-1)(xs)
     x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
-    for _ in range(2):
-        res = x
-        x = layers.Dense(embed_dim)(x)
-        x = layers.Dropout(dropout)(x)
-        x = layers.Add()([res, x])
-        x = layers.BatchNormalization()(x)
-        x = layers.Activation('relu')(x)
-
     return x
-
-
-def save(cls, filepath, overwrite=True, **kwargs):
-    """ save model without optimizer states """
-    kwargs['include_optimizer'] = False
-    tf.keras.models.save_model(cls, filepath,
-                               overwrite=overwrite,
-                               **kwargs)
 
 
 def build_model(input_shape,
@@ -333,10 +321,16 @@ def build_model(input_shape,
 
     x = layers.Input(shape=input_shape)
     h = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
-    h = layers.Lambda(lambda x: x[:, :, :96, :])(h)
-    h = CIRNet(h, embed_dim, dropout)
+    h = TimeReduction(h)
+    h = layers.Dense(embed_dim)(h)
+    h = layers.Dropout(dropout)(h)
+    h = layers.BatchNormalization()(h)
+    h = layers.Activation('relu')(h)
     h = AntennaMasking()([x, h])
     h = AntennaEmbedding()(h)
+    h = layers.Dense(embed_dim)(h)
+    h = layers.BatchNormalization()(h)
+    h = layers.Activation('relu')(h)
 
     for _ in range(num_attention_layers):
         h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
@@ -358,6 +352,14 @@ def build_model(input_shape,
     model = tf.keras.Model(x, y)
     model.save = types.MethodType(save, model)
     return model
+
+
+def save(cls, filepath, overwrite=True, **kwargs):
+    """ save model without optimizer states """
+    kwargs['include_optimizer'] = False
+    tf.keras.models.save_model(cls, filepath,
+                               overwrite=overwrite,
+                               **kwargs)
 
 
 tf.keras.utils.get_custom_objects().update(
