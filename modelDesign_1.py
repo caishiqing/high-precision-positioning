@@ -299,9 +299,9 @@ def TimeReduction(x):
     xs = []
     for xi, filters in zip(tf.split(x, 4, axis=-2), [128, 48, 24, 8]):
         xi = layers.TimeDistributed(layers.ZeroPadding1D(2))(xi)
-        xi = layers.TimeDistributed(layers.Conv1D(filters, 64))
+        xi = layers.TimeDistributed(layers.Conv1D(filters, 64))(xi)
         xi = layers.TimeDistributed(layers.GlobalMaxPool1D())(xi)
-        xs.append(xs)
+        xs.append(xi)
 
     x = layers.Concatenate(-1)(xs)
     x = layers.BatchNormalization()(x)
