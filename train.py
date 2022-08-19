@@ -80,8 +80,9 @@ class TrainEngine:
         x_valid, y_valid = valid_data
 
         if self.mask_rate > 0:
+            "Masking BS ..."
             autoturn = tf.data.AUTOTUNE
-            augment = MaskBS(18, self.min_bs, self.max_bs, self.mask_rate)
+            augment = MaskBS(18, self.mask_rate)
             train_dataset = tf.data.Dataset.from_tensor_slices(
                 train_data).map(augment, num_parallel_calls=autoturn).batch(self.batch_size)
             valid_dataset = tf.data.Dataset.from_tensor_slices(
@@ -89,6 +90,7 @@ class TrainEngine:
             valid_dataset = list(valid_dataset)[0]
             y = None
         else:
+            "No masking BS ..."
             train_dataset = x_train
             valid_dataset = (x_valid, y_valid)
             y = y_train
