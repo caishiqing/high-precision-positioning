@@ -214,99 +214,100 @@ def Residual(fn, res, dropout=0.0):
     return x
 
 
-# def CIRNet(x):
-#     x = layers.TimeDistributed(layers.Conv1D(8, 3, padding="same"))(x)
-#     x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
-#     x = Residual(
-#         tf.keras.Sequential(
-#             layers=[
-#                 layers.TimeDistributed(layers.Conv1D(8, 1, padding='same')),
-#                 layers.TimeDistributed(layers.BatchNormalization()),
-#                 layers.TimeDistributed(layers.LeakyReLU()),
-#                 layers.TimeDistributed(layers.Conv1D(8, 3, padding='same'))
-#             ]
-#         ),
-#         x
-#     )
-#     x = layers.BatchNormalization()(x)
-#     x = layers.LeakyReLU()(x)
-
-#     x = layers.TimeDistributed(layers.Conv1D(16, 3, padding="same"))(x)
-#     x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
-#     x = Residual(
-#         tf.keras.Sequential(
-#             layers=[
-#                 layers.TimeDistributed(layers.Conv1D(16, 1, padding='same')),
-#                 layers.TimeDistributed(layers.BatchNormalization()),
-#                 layers.TimeDistributed(layers.LeakyReLU()),
-#                 layers.TimeDistributed(layers.Conv1D(16, 3, padding='same'))
-#             ]
-#         ),
-#         x
-#     )
-#     x = layers.BatchNormalization()(x)
-#     x = layers.LeakyReLU()(x)
-
-#     x = layers.TimeDistributed(layers.Conv1D(32, 3, padding="same"))(x)
-#     x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
-#     x = Residual(
-#         tf.keras.Sequential(
-#             layers=[
-#                 layers.TimeDistributed(layers.Conv1D(32, 1, padding='same')),
-#                 layers.TimeDistributed(layers.BatchNormalization()),
-#                 layers.TimeDistributed(layers.LeakyReLU()),
-#                 layers.TimeDistributed(layers.Conv1D(32, 3, padding='same'))
-#             ]
-#         ),
-#         x
-#     )
-#     x = layers.BatchNormalization()(x)
-#     x = layers.LeakyReLU()(x)
-
-#     x = layers.TimeDistributed(layers.Conv1D(64, 3, padding="same"))(x)
-#     x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
-#     x = Residual(
-#         tf.keras.Sequential(
-#             layers=[
-#                 layers.TimeDistributed(layers.Conv1D(64, 1, padding='same')),
-#                 layers.TimeDistributed(layers.BatchNormalization()),
-#                 layers.TimeDistributed(layers.LeakyReLU()),
-#                 layers.TimeDistributed(layers.Conv1D(64, 3, padding='same'))
-#             ]
-#         ),
-#         x
-#     )
-#     x = layers.BatchNormalization()(x)
-#     x = layers.LeakyReLU()(x)
-
-#     x = layers.TimeDistributed(layers.Flatten())(x)
-#     return x
-
-
-class RecoverSignal(layers.Layer):
-    def call(self, x):
-        image, real = x[:, :, :, 0], x[:, :, :, 1]
-        amplitude = tf.math.sqrt(tf.pow(image, 2) + tf.pow(real, 2))
-        phase = tf.math.atan(tf.math.divide_no_nan(image, real))
-        x = tf.stack([amplitude, phase], axis=-1)
-        return x
-
-    def compute_output_shape(self, input_shape):
-        return input_shape
-
-
 def TimeReduction(x):
-    xs = []
-    for xi, filters in zip(tf.split(x, 4, axis=-2), [128, 48, 24, 8]):
-        xi = layers.TimeDistributed(layers.ZeroPadding1D(2))(xi)
-        xi = layers.TimeDistributed(layers.Conv1D(filters, 64))(xi)
-        xi = layers.TimeDistributed(layers.GlobalMaxPool1D())(xi)
-        xs.append(xi)
-
-    x = layers.Concatenate(-1)(xs)
+    x = layers.Lambda(lambda x: x[:, :, :128, :])(x)
+    x = layers.TimeDistributed(layers.Conv1D(8, 3, padding="same"))(x)
+    x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
+    x = Residual(
+        tf.keras.Sequential(
+            layers=[
+                layers.TimeDistributed(layers.Conv1D(8, 1, padding='same')),
+                layers.TimeDistributed(layers.BatchNormalization()),
+                layers.TimeDistributed(layers.LeakyReLU()),
+                layers.TimeDistributed(layers.Conv1D(8, 3, padding='same'))
+            ]
+        ),
+        x
+    )
     x = layers.BatchNormalization()(x)
-    x = layers.Activation('relu')(x)
+    x = layers.LeakyReLU()(x)
+
+    x = layers.TimeDistributed(layers.Conv1D(16, 3, padding="same"))(x)
+    x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
+    x = Residual(
+        tf.keras.Sequential(
+            layers=[
+                layers.TimeDistributed(layers.Conv1D(16, 1, padding='same')),
+                layers.TimeDistributed(layers.BatchNormalization()),
+                layers.TimeDistributed(layers.LeakyReLU()),
+                layers.TimeDistributed(layers.Conv1D(16, 3, padding='same'))
+            ]
+        ),
+        x
+    )
+    x = layers.BatchNormalization()(x)
+    x = layers.LeakyReLU()(x)
+
+    x = layers.TimeDistributed(layers.Conv1D(32, 3, padding="same"))(x)
+    x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
+    x = Residual(
+        tf.keras.Sequential(
+            layers=[
+                layers.TimeDistributed(layers.Conv1D(32, 1, padding='same')),
+                layers.TimeDistributed(layers.BatchNormalization()),
+                layers.TimeDistributed(layers.LeakyReLU()),
+                layers.TimeDistributed(layers.Conv1D(32, 3, padding='same'))
+            ]
+        ),
+        x
+    )
+    x = layers.BatchNormalization()(x)
+    x = layers.LeakyReLU()(x)
+
+    x = layers.TimeDistributed(layers.Conv1D(64, 3, padding="same"))(x)
+    x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
+    x = Residual(
+        tf.keras.Sequential(
+            layers=[
+                layers.TimeDistributed(layers.Conv1D(64, 1, padding='same')),
+                layers.TimeDistributed(layers.BatchNormalization()),
+                layers.TimeDistributed(layers.LeakyReLU()),
+                layers.TimeDistributed(layers.Conv1D(64, 3, padding='same'))
+            ]
+        ),
+        x
+    )
+    x = layers.BatchNormalization()(x)
+    x = layers.LeakyReLU()(x)
+
+    x = layers.TimeDistributed(layers.Flatten())(x)
     return x
+
+
+# class RecoverSignal(layers.Layer):
+#     def call(self, x):
+#         image, real = x[:, :, :, 0], x[:, :, :, 1]
+#         amplitude = tf.math.sqrt(tf.pow(image, 2) + tf.pow(real, 2))
+#         phase = tf.math.atan(tf.math.divide_no_nan(image, real))
+#         x = tf.stack([amplitude, phase], axis=-1)
+#         return x
+
+#     def compute_output_shape(self, input_shape):
+#         return input_shape
+
+
+# def TimeReduction(x):
+#     xs = []
+#     for xi, filters in zip(tf.split(x, 4, axis=-2), [128, 48, 24, 8]):
+#         xi = layers.TimeDistributed(layers.ZeroPadding1D(2))(xi)
+#         xi = layers.TimeDistributed(layers.Conv1D(filters, 64))(xi)
+#         xi = layers.TimeDistributed(layers.GlobalMaxPool1D())(xi)
+#         xs.append(xi)
+
+#     x = layers.Concatenate(-1)(xs)
+#     x = layers.BatchNormalization()(x)
+#     x = layers.Activation('relu')(x)
+#     return x
 
 
 def build_model(input_shape,
@@ -367,8 +368,7 @@ tf.keras.utils.get_custom_objects().update(
         'MultiHeadAttention': MultiHeadAttention,
         'SelfAttention': SelfAttention,
         'AntennaMasking': AntennaMasking,
-        'AntennaEmbedding': AntennaEmbedding,
-        'RecoverSignal': RecoverSignal
+        'AntennaEmbedding': AntennaEmbedding
     }
 )
 
