@@ -143,10 +143,7 @@ class SelfAttention(MultiHeadAttention):
                                                training=training)
 
     def compute_mask(self, x, mask=None):
-        if mask is not None:
-            return mask
-
-        return tf.reduce_any(tf.not_equal(x, 0), axis=-1)
+        return mask
 
 
 class AntennaMasking(layers.Layer):
