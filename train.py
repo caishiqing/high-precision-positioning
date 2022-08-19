@@ -73,7 +73,8 @@ class TrainEngine:
             tf.config.experimental_connect_to_cluster(tpu)
             tf.tpu.experimental.initialize_tpu_system(tpu)
             strategy = tf.distribute.experimental.TPUStrategy(tpu)
-        except ValueError:
+        except:
+            print("Runing on gpu")
             strategy = tf.distribute.get_strategy()
 
         x_train, y_train = train_data
