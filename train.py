@@ -79,9 +79,9 @@ class TrainEngine:
 
         x_train, y_train = train_data
         x_valid, y_valid = valid_data
-
+        "Masking BS ..."
         if self.mask_rate > 0:
-            "Masking BS ..."
+            #"Masking BS ..."
             autoturn = tf.data.AUTOTUNE
             augment = MaskBS(18, self.mask_rate)
             train_dataset = tf.data.Dataset.from_tensor_slices(
