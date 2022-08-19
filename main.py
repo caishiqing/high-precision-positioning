@@ -17,10 +17,7 @@ def train(data_file, label_file, save_path,
                                infer_batch_size=kwargs.pop('infer_batch_size', 128),
                                epochs=kwargs.pop('epochs', 100),
                                learning_rate=kwargs.pop('learning_rate', 1e-3),
-                               valid_augment_times=kwargs.pop('test_augment_times', 5),
                                dropout=kwargs.pop('dropout', 0.0),
-                               min_bs=kwargs.pop('min_bs', 4),
-                               max_bs=kwargs.pop('max_bs', 18),
                                mask_rate=kwargs.pop('mask_rate', 0.0))
 
     train_process = Process(target=train_engine,

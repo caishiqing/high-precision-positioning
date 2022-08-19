@@ -53,37 +53,45 @@ class TrainEngine:
                  infer_batch_size,
                  epochs=100,
                  learning_rate=1e-3,
-                 valid_augment_times=1,
                  dropout=0.0,
-                 min_bs=4,
-                 max_bs=18,
                  mask_rate=0.0):
 
         self.batch_size = int(batch_size)
         self.infer_batch_size = int(infer_batch_size)
         self.epochs = int(epochs)
         self.learning_rate = float(learning_rate)
-        self.valid_augment_times = int(valid_augment_times)
         self.dropout = float(dropout)
-        self.min_bs = int(min_bs)
-        self.max_bs = int(max_bs)
         self.mask_rate = float(mask_rate)
 
     def __call__(self, train_data, valid_data,
                  save_path, pretrained_path=None, verbose=1):
 
+        # Build distribute strategy on gpu or tpu
+        try:
+            tpu = tf.distribute.cluster_resolver.TPUClusterResolver()
+            print('Running on TPU ', tpu.master())
+            tf.config.experimental_connect_to_cluster(tpu)
+            tf.tpu.experimental.initialize_tpu_system(tpu)
+            strategy = tf.distribute.experimental.TPUStrategy(tpu)
+        except ValueError:
+            strategy = tf.distribute.get_strategy()
+
         x_train, y_train = train_data
         x_valid, y_valid = valid_data
-        x_valid = np.vstack([x_valid] * self.valid_augment_times)
-        y_valid = np.vstack([y_valid] * self.valid_augment_times)
 
-        autoturn = tf.data.AUTOTUNE
-        augment = MaskBS(18, self.min_bs, self.max_bs, self.mask_rate)
-        train_dataset = tf.data.Dataset.from_tensor_slices(
-            train_data).map(augment, num_parallel_calls=autoturn).batch(self.batch_size)
-        valid_dataset = tf.data.Dataset.from_tensor_slices(
-            valid_data).map(augment, num_parallel_calls=autoturn).batch(len(x_valid))
-        valid_dataset = list(valid_dataset)[0]
+        if self.mask_rate > 0:
+            autoturn = tf.data.AUTOTUNE
+            augment = MaskBS(18, self.min_bs, self.max_bs, self.mask_rate)
+            train_dataset = tf.data.Dataset.from_tensor_slices(
+                train_data).map(augment, num_parallel_calls=autoturn).batch(self.batch_size)
+            valid_dataset = tf.data.Dataset.from_tensor_slices(
+                valid_data).map(augment, num_parallel_calls=autoturn).batch(len(x_valid))
+            valid_dataset = list(valid_dataset)[0]
+            y = None
+        else:
+            train_dataset = x_train
+            valid_dataset = (x_valid, y_valid)
+            y = y_train
 
         checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
                                                         save_best_only=True,
@@ -91,24 +99,25 @@ class TrainEngine:
                                                         mode='min',
                                                         monitor='val_loss')
 
-        total_steps = len(x_train) // self.batch_size * self.epochs
-        optimizer = AdamWarmup(warmup_steps=int(total_steps * 0.1),
-                               decay_steps=total_steps-int(total_steps * 0.1),
-                               initial_learning_rate=self.learning_rate)
+        with strategy.scope():
+            total_steps = len(x_train) // self.batch_size * self.epochs
+            optimizer = AdamWarmup(warmup_steps=int(total_steps * 0.1),
+                                   decay_steps=total_steps-int(total_steps * 0.1),
+                                   initial_learning_rate=self.learning_rate)
 
-        model = build_model(x_train.shape[1:], 2, dropout=self.dropout)
-        if pretrained_path is not None:
-            print("Load pretrained weights from {}".format(pretrained_path))
-            model.load_weights(pretrained_path)
+            model = build_model(x_train.shape[1:], 2, dropout=self.dropout)
+            if pretrained_path is not None:
+                print("Load pretrained weights from {}".format(pretrained_path))
+                model.load_weights(pretrained_path)
 
-        model.compile(optimizer=optimizer, loss=euclidean_loss)
-        model.summary()
-        model.fit(x=train_dataset,
-                  epochs=self.epochs,
-                  validation_data=valid_dataset,
-                  validation_batch_size=self.infer_batch_size,
-                  callbacks=[checkpoint],
-                  verbose=verbose)
+            model.compile(optimizer=optimizer, loss=euclidean_loss)
+            model.summary()
+            model.fit(x=train_dataset, y=y,
+                      epochs=self.epochs,
+                      validation_data=valid_dataset,
+                      validation_batch_size=self.infer_batch_size,
+                      callbacks=[checkpoint],
+                      verbose=verbose)
 
         print(checkpoint.best)
         model.load_weights(save_path)
