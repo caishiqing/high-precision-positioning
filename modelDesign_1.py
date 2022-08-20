@@ -313,7 +313,8 @@ def build_model(input_shape,
                 hidden_dim=512,
                 num_heads=8,
                 num_attention_layers=6,
-                dropout=0.0):
+                dropout=0.0,
+                do_norm=False):
 
     assert embed_dim % num_heads == 0
 
@@ -346,6 +347,8 @@ def build_model(input_shape,
 
     h = layers.Lambda(lambda x: x[:, 0, :])(h)
     y = layers.Dense(output_shape)(h)
+    if do_norm:
+        y = layers.Lambda(lambda x: x / 120)(y)
 
     model = tf.keras.Model(x, y)
     model.save = types.MethodType(save, model)
