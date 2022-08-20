@@ -88,7 +88,7 @@ class TrainEngine:
                                                         monitor='val_loss')
 
         with strategy.scope():
-            total_steps = len(x_train_shape[0]) // self.batch_size * self.epochs
+            total_steps = x_train_shape[0] // self.batch_size * self.epochs
             optimizer = AdamWarmup(warmup_steps=int(total_steps * 0.1),
                                    decay_steps=total_steps-int(total_steps * 0.1),
                                    initial_learning_rate=self.learning_rate)
