@@ -19,22 +19,12 @@ class MaskBS(object):
     def __init__(self, total_bs, mask_rate=0.0):
         self.total_bs = total_bs
         self.mask_rate = mask_rate
-        mask = np.zeros(total_bs, dtype=np.int32)
+        mask = np.zeros(total_bs, dtype=np.float32)
         mask[[0, 5, 12, 17]] = 1
         mask = tf.identity(mask)
         mask = mask[:, tf.newaxis, tf.newaxis, tf.newaxis]
         mask = tf.tile(mask, [1, 4, 1, 1])
         self._mask = tf.reshape(mask, [-1, 1, 1])
-
-    def _mask_bs(self):
-        mask = np.ones(self.total_bs, dtype=np.float32)
-        if self.mask_rate > 0 and random.random() < self.mask_rate:
-            # num_zeros = self.total_bs - random.randint(self.min_bs, self.max_bs)
-            # zeros = random.sample(self.bs_ids, num_zeros)
-            zeros = self.zeros
-            mask[zeros] = 0
-
-        return mask
 
     def __call__(self, x, y):
         x = tf.where(random.random() < self.mask_rate, x * self._mask, x)
