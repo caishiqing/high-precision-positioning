@@ -1,3 +1,4 @@
+from enum import auto
 from tabnanny import check
 from optimizer import AdamWarmup
 from modelDesign_1 import build_model
@@ -15,13 +16,15 @@ def load_data(x_file, y_file):
 
 
 class MaskBS(object):
-    def __init__(self, total_bs, min_bs=4, max_bs=18, mask_rate=0.0):
+    def __init__(self, total_bs, mask_rate=0.0):
         self.total_bs = total_bs
-        self.min_bs = min_bs
-        self.max_bs = max_bs
         self.mask_rate = mask_rate
-        self.bs_ids = list(range(total_bs))
-        self.zeros = list(set(range(18)) - set([0, 5, 12, 17]))
+        mask = np.zeros(total_bs, dtype=np.int32)
+        mask[[0, 5, 12, 17]] = 1
+        mask = tf.identity(mask)
+        mask = mask[:, tf.newaxis, tf.newaxis, tf.newaxis]
+        mask = tf.tile(mask, [1, 4, 1, 1])
+        self._mask = tf.reshape(mask, [-1, 1, 1])
 
     def _mask_bs(self):
         mask = np.ones(self.total_bs, dtype=np.float32)
@@ -34,11 +37,7 @@ class MaskBS(object):
         return mask
 
     def __call__(self, x, y):
-        mask = tf.py_function(self._mask_bs, [], tf.float32)
-        mask = mask[:, tf.newaxis, tf.newaxis, tf.newaxis]
-        mask = tf.tile(mask, [1, 4, 1, 1])
-        mask = tf.reshape(mask, [-1, 1, 1])
-        x *= mask
+        x = tf.where(random.random() < self.mask_rate, x * self._mask, x)
         return x, y
 
 
@@ -73,29 +72,25 @@ class TrainEngine:
             tf.config.experimental_connect_to_cluster(tpu)
             tf.tpu.experimental.initialize_tpu_system(tpu)
             strategy = tf.distribute.experimental.TPUStrategy(tpu)
+            drop_remainder = True
         except:
-            print("Runing on gpu")
+            print("Runing on gpu or cpu")
             strategy = tf.distribute.get_strategy()
+            drop_remainder = False
 
-        x_train, y_train = train_data
-        x_valid, y_valid = valid_data
-
+        x_train_shape = train_data[0].shape
+        x_valid_shape = valid_data[0].shape
+        train_data = tf.data.Dataset.from_tensor_slices(train_data)
         if self.mask_rate > 0:
             print("Masking BS ...")
             autoturn = tf.data.AUTOTUNE
             augment = MaskBS(18, self.mask_rate)
-            train_dataset = tf.data.Dataset.from_tensor_slices(
-                train_data).map(augment, num_parallel_calls=autoturn).batch(self.batch_size)
-            valid_dataset = tf.data.Dataset.from_tensor_slices(
-                valid_data).map(augment, num_parallel_calls=autoturn).batch(len(x_valid))
-            valid_dataset = list(valid_dataset)[0]
-            y = None
-        else:
-            print("No masking BS ...")
-            train_dataset = x_train
-            valid_dataset = (x_valid, y_valid)
-            y = y_train
+            train_data = train_data.map(augment, autoturn)
+            valid_data = tf.data.Dataset.from_tensor_slices(
+                valid_data).map(augment, autoturn)
+            valid_data = list(valid_data.batch(x_valid_shape[0]))[0]
 
+        train_data = train_data.batch(self.batch_size, drop_remainder=drop_remainder)
         checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
                                                         save_best_only=True,
                                                         save_weights_only=False,
@@ -103,24 +98,25 @@ class TrainEngine:
                                                         monitor='val_loss')
 
         with strategy.scope():
-            total_steps = len(x_train) // self.batch_size * self.epochs
+            total_steps = len(x_train_shape[0]) // self.batch_size * self.epochs
             optimizer = AdamWarmup(warmup_steps=int(total_steps * 0.1),
                                    decay_steps=total_steps-int(total_steps * 0.1),
                                    initial_learning_rate=self.learning_rate)
 
-            model = build_model(x_train.shape[1:], 2, dropout=self.dropout)
+            model = build_model(x_train_shape[1:], 2, dropout=self.dropout)
             if pretrained_path is not None:
                 print("Load pretrained weights from {}".format(pretrained_path))
                 model.load_weights(pretrained_path)
 
             model.compile(optimizer=optimizer, loss=euclidean_loss)
             model.summary()
-            model.fit(x=train_dataset, y=y,
+            model.fit(x=train_data,
                       epochs=self.epochs,
-                      validation_data=valid_dataset,
+                      validation_data=valid_data,
                       validation_batch_size=self.infer_batch_size,
                       callbacks=[checkpoint],
-                      verbose=verbose)
+                      verbose=verbose,
+                      shuffle=True)
 
         print(checkpoint.best)
         model.load_weights(save_path)
