@@ -1,5 +1,3 @@
-from enum import auto
-from tabnanny import check
 from optimizer import AdamWarmup
 from modelDesign_1 import build_model
 import tensorflow as tf
@@ -21,13 +19,14 @@ class MaskBS(object):
         self.mask_rate = mask_rate
         mask = np.zeros(total_bs, dtype=np.float32)
         mask[[0, 5, 12, 17]] = 1
-        mask = tf.identity(mask)
+        mask = tf.constant(mask)
         mask = mask[:, tf.newaxis, tf.newaxis, tf.newaxis]
         mask = tf.tile(mask, [1, 4, 1, 1])
         self._mask = tf.reshape(mask, [-1, 1, 1])
 
     def __call__(self, x, y):
-        x = tf.where(random.random() < self.mask_rate, x * self._mask, x)
+        x = tf.cond(tf.random.uniform([]) < self.mask_rate,
+                    lambda: x * self._mask, lambda: x)
         return x, y
 
 
@@ -98,7 +97,7 @@ class TrainEngine:
                 print("Load pretrained weights from {}".format(pretrained_path))
                 model.load_weights(pretrained_path)
 
-            model.compile(optimizer=optimizer, loss=euclidean_loss)
+            model.compile(optimizer=optimizer, loss=tf.keras.losses.mae)
             model.summary()
             model.fit(x=train_data,
                       epochs=self.epochs,
@@ -126,8 +125,8 @@ class Checkpoint(tf.keras.callbacks.ModelCheckpoint):
 if __name__ == '__main__':
     x = np.random.random((1000, 72, 2, 4)).astype(np.float32)
     y = np.random.random((1000, 2)).astype(np.float32)
-    augment = MaskBS(18, 1, 2, 0.5)
+    augment = MaskBS(18, 0.5)
     dataset = tf.data.Dataset.from_tensor_slices((x, y))
-    dataset = dataset.map(augment).batch(len(x))
+    dataset = dataset.map(augment).batch(1000)
     xx, yy = list(dataset)[0]
     pass
