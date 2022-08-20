@@ -10,6 +10,7 @@ def train(data_file, label_file, save_path,
 
     x, y = load_data(data_file, label_file)
     x = x[:len(y)]
+    y /= 120
     test_size = kwargs.pop('test_size', 0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
 

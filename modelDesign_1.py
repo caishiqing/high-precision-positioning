@@ -314,7 +314,7 @@ def build_model(input_shape,
                 num_heads=8,
                 num_attention_layers=6,
                 dropout=0.0,
-                do_norm=False):
+                norm_size=None):
 
     assert embed_dim % num_heads == 0
 
@@ -347,8 +347,8 @@ def build_model(input_shape,
 
     h = layers.Lambda(lambda x: x[:, 0, :])(h)
     y = layers.Dense(output_shape)(h)
-    if do_norm:
-        y = layers.Lambda(lambda x: x / 120)(y)
+    if norm_size is not None:
+        y = layers.Lambda(lambda x: x * norm_size)(y)
 
     model = tf.keras.Model(x, y)
     model.save = types.MethodType(save, model)
@@ -374,7 +374,7 @@ tf.keras.utils.get_custom_objects().update(
 
 
 def Model_1(input_shape, output_shape):
-    return build_model(input_shape, output_shape)
+    return build_model(input_shape, output_shape, norm_size=120)
 
 
 if __name__ == '__main__':
