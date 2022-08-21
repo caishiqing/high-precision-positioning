@@ -41,6 +41,7 @@ class RandomMaskBS:
         mbs = x[bs_id, :, :, :self.length]
         mask = tf.one_hot(bs_id, self.total_bs, dtype=x.dtype)[:, tf.newaxis, tf.newaxis, tf.newaxis]
         x *= (1 - mask)
+        x += mask
         x = tf.reshape(x, [4 * self.total_bs, 2, -1])
         return x, mbs
 
