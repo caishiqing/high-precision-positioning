@@ -351,8 +351,9 @@ def build_model(input_shape,
     if norm_size is not None:
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
-    bs = layers.Dense(4*length)(h)
-    bs = layers.Reshape([4, 2, length // 2])(bs)
+    # bs = layers.Dense(4*length)(h)
+    # bs = layers.Reshape([4, 2, length // 2])(bs)
+    bs=layers.Dense(num_antennas, activation='softmax')(h)
 
     model = tf.keras.Model(x, y)
     model.save = types.MethodType(save, model)
