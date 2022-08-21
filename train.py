@@ -31,13 +31,14 @@ class MaskBS(object):
 
 
 class RandomMaskBS:
-    def __init__(self, total_bs):
+    def __init__(self, total_bs, length=128):
         self.total_bs = total_bs
+        self.length = length
 
     def __call__(self, x):
         bs_id = tf.random.uniform(shape=(), minval=0, maxval=self.total_bs, dtype=tf.int32)
         x = tf.reshape(x, [self.total_bs, 4, 2, -1])
-        mbs = x[bs_id]
+        mbs = x[bs_id, :, :self.length]
         mask = tf.one_hot(bs_id, self.total_bs, dtype=x.dtype)[:, tf.newaxis, tf.newaxis, tf.newaxis]
         x *= (1 - mask)
         x = tf.reshape(x, [4 * self.total_bs, 2, -1])

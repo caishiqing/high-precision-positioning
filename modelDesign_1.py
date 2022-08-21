@@ -351,8 +351,8 @@ def build_model(input_shape,
     if norm_size is not None:
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
-    bs = layers.Dense(4*2*length)(h)
-    bs = layers.Reshape([4, 2, length])(bs)
+    bs = layers.Dense(4*length)(h)
+    bs = layers.Reshape([4, 2, length // 2])(bs)
 
     model = tf.keras.Model(x, y)
     model.save = types.MethodType(save, model)
