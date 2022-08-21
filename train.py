@@ -42,7 +42,7 @@ class RandomMaskBS:
         mask = tf.one_hot(bs_id, self.total_bs, dtype=x.dtype)[:, tf.newaxis, tf.newaxis, tf.newaxis]
         x *= (1 - mask)
         x = tf.reshape(x, [4 * self.total_bs, 2, -1])
-        return x, bs_id
+        return x, mbs
 
 
 def euclidean_loss(y_true, y_pred):
@@ -167,8 +167,7 @@ class PretrainEngine(TrainEngine):
                 model.load_weights(pretrained_path)
 
             mbs_model.compile(optimizer=optimizer,
-                              loss=tf.keras.losses.SparseCategoricalCrossentropy(),
-                              metrics=['accuracy'])
+                              loss=tf.keras.losses.mse)
             mbs_model.summary()
             mbs_model.fit(x=train_data,
                           epochs=self.epochs,
