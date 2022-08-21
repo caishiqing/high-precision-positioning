@@ -30,6 +30,20 @@ class MaskBS(object):
         return x, y
 
 
+class RandomMaskBS:
+    def __init__(self, total_bs):
+        self.total_bs = total_bs
+
+    def __call__(self, x):
+        bs_id = tf.random.uniform(shape=(), minval=0, maxval=self.total_bs, dtype=tf.int32)
+        x = tf.reshape(x, [self.total_bs, 4, 2, -1])
+        mbs = x[bs_id]
+        mask = tf.one_hot(bs_id, self.total_bs, dtype=x.dtype)[:, tf.newaxis, tf.newaxis, tf.newaxis]
+        x *= (1 - mask)
+        x = tf.reshape(x, [4 * self.total_bs, 2, -1])
+        return x, mbs
+
+
 def euclidean_loss(y_true, y_pred):
     distance = tf.math.sqrt(tf.reduce_sum(tf.pow(y_true-y_pred, 2), axis=-1))
     return tf.reduce_mean(distance)
@@ -50,10 +64,9 @@ class TrainEngine:
         self.learning_rate = float(learning_rate)
         self.dropout = float(dropout)
         self.mask_rate = float(mask_rate)
+        self.drop_remainder = False
 
-    def __call__(self, train_data, valid_data,
-                 save_path, pretrained_path=None, verbose=1):
-
+    def _init_environ(self):
         # Build distribute strategy on gpu or tpu
         try:
             tpu = tf.distribute.cluster_resolver.TPUClusterResolver()
@@ -61,12 +74,17 @@ class TrainEngine:
             tf.config.experimental_connect_to_cluster(tpu)
             tf.tpu.experimental.initialize_tpu_system(tpu)
             strategy = tf.distribute.experimental.TPUStrategy(tpu)
-            drop_remainder = True
+            self.drop_remainder = True
         except:
             print("Runing on gpu or cpu")
             strategy = tf.distribute.get_strategy()
-            drop_remainder = False
 
+        return strategy
+
+    def __call__(self, train_data, valid_data,
+                 save_path, pretrained_path=None, verbose=1):
+
+        strategy = self._init_environ()
         x_train_shape = train_data[0].shape
         x_valid_shape = valid_data[0].shape
         train_data = tf.data.Dataset.from_tensor_slices(train_data)
@@ -79,7 +97,7 @@ class TrainEngine:
                 valid_data).map(augment, autoturn)
             valid_data = list(valid_data.batch(x_valid_shape[0]))[0]
 
-        train_data = train_data.batch(self.batch_size, drop_remainder=drop_remainder)
+        train_data = train_data.batch(self.batch_size, drop_remainder=self.drop_remainder)
         checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
                                                         save_best_only=True,
                                                         save_weights_only=False,
@@ -92,7 +110,7 @@ class TrainEngine:
                                    decay_steps=total_steps-int(total_steps * 0.1),
                                    initial_learning_rate=self.learning_rate)
 
-            model = build_model(x_train_shape[1:], 2, dropout=self.dropout)
+            model, _ = build_model(x_train_shape[1:], 2, dropout=self.dropout)
             if pretrained_path is not None:
                 print("Load pretrained weights from {}".format(pretrained_path))
                 model.load_weights(pretrained_path)
@@ -112,21 +130,62 @@ class TrainEngine:
         return model
 
 
-class Checkpoint(tf.keras.callbacks.ModelCheckpoint):
-    def __init__(self, filepath, start_checkpoint_epoch=0, **kwargs):
-        super(Checkpoint, self).__init__(filepath, **kwargs)
-        self.start_checkpoint_epoch = start_checkpoint_epoch
+class PretrainEngine(TrainEngine):
+    def __call__(self, train_data, valid_data,
+                 save_path, pretrained_path=None, verbose=1):
 
-    def _save_model(self, epoch, logs):
-        if epoch >= self.start_checkpoint_epoch:
-            super(Checkpoint, self)._save_model(epoch, logs)
+        strategy = self._init_environ()
+        x_train_shape = train_data[0].shape
+        x_valid_shape = valid_data[0].shape
+
+        autoturn = tf.data.AUTOTUNE
+        augment = RandomMaskBS(18)
+        train_data = tf.data.Dataset.from_tensor_slices(
+            train_data).map(augment, autoturn).batch(self.batch_size,
+                                                     drop_remainder=self.drop_remainder)
+        valid_data = tf.data.Dataset.from_tensor_slices(
+            valid_data).map(augment, autoturn).batch(x_valid_shape[0])
+        valid_data = list(valid_data)[0]
+
+        checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
+                                                        save_best_only=True,
+                                                        save_weights_only=True,
+                                                        mode='min',
+                                                        monitor='val_loss')
+
+        with strategy.scope():
+            total_steps = x_train_shape[0] // self.batch_size * self.epochs
+            optimizer = AdamWarmup(warmup_steps=int(total_steps * 0.1),
+                                   decay_steps=total_steps-int(total_steps * 0.1),
+                                   initial_learning_rate=self.learning_rate)
+
+            # Train mask-bs model weights
+            model, mbs_model = build_model(x_train_shape[1:], 2, dropout=self.dropout)
+            if pretrained_path is not None:
+                print("Load pretrained weights from {}".format(pretrained_path))
+                model.load_weights(pretrained_path)
+
+            mbs_model.compile(optimizer=optimizer, loss=tf.keras.losses.mae)
+            mbs_model.summary()
+            mbs_model.fit(x=train_data,
+                          epochs=self.epochs,
+                          validation_data=valid_data,
+                          validation_batch_size=self.infer_batch_size,
+                          callbacks=[checkpoint],
+                          verbose=verbose,
+                          shuffle=True)
+
+        print(checkpoint.best)
+        mbs_model.load_weights(save_path)
+        model.save(save_path)
+        return model
 
 
 if __name__ == '__main__':
     x = np.random.random((1000, 72, 2, 4)).astype(np.float32)
     y = np.random.random((1000, 2)).astype(np.float32)
-    augment = MaskBS(18, 0.5)
-    dataset = tf.data.Dataset.from_tensor_slices((x, y))
+    augment = RandomMaskBS(18)
+    dataset = tf.data.Dataset.from_tensor_slices(x)
     dataset = dataset.map(augment).batch(1000)
     xx, yy = list(dataset)[0]
     pass

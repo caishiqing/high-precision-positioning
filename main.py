@@ -1,5 +1,5 @@
 from sklearn.model_selection import train_test_split
-from train import TrainEngine, load_data
+from train import TrainEngine,  PretrainEngine, load_data
 from multiprocessing import Process
 import numpy as np
 import fire
@@ -25,6 +25,31 @@ def train(data_file, label_file, save_path,
                             args=(
                                 (x_train, y_train),
                                 (x_valid, y_valid),
+                                save_path,
+                                pretrained_path,
+                                kwargs.pop('verbose', 1)
+                            ))
+    train_process.start()
+    train_process.join()
+
+
+def pretrain(data_file, label_file, save_path,
+             pretrained_path=None, **kwargs):
+
+    x, y = load_data(data_file, label_file)
+    test_size = kwargs.pop('test_size', 0.1)
+    x_train, x_valid, _, _ = train_test_split(x, y, test_size=test_size)
+
+    train_engine = PretrainEngine(batch_size=kwargs.pop('batch_size', 128),
+                                  infer_batch_size=kwargs.pop('infer_batch_size', 128),
+                                  epochs=kwargs.pop('epochs', 100),
+                                  learning_rate=kwargs.pop('learning_rate', 1e-3),
+                                  dropout=kwargs.pop('dropout', 0.0))
+
+    train_process = Process(target=train_engine,
+                            args=(
+                                x_train,
+                                x_valid,
                                 save_path,
                                 pretrained_path,
                                 kwargs.pop('verbose', 1)

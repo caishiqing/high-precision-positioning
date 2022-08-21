@@ -316,6 +316,7 @@ def build_model(input_shape,
                 dropout=0.0,
                 norm_size=None):
 
+    num_antennas, _, length = input_shape
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
@@ -350,9 +351,13 @@ def build_model(input_shape,
     if norm_size is not None:
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
+    bs = layers.Dense(4*2*length)(h)
+    bs = layers.Reshape([4, 2, length])(bs)
+
     model = tf.keras.Model(x, y)
     model.save = types.MethodType(save, model)
-    return model
+    mbs_model = tf.keras.Model(x, bs)
+    return model, mbs_model
 
 
 def save(cls, filepath, overwrite=True, **kwargs):
@@ -374,7 +379,8 @@ tf.keras.utils.get_custom_objects().update(
 
 
 def Model_2(input_shape, output_shape):
-    return build_model(input_shape, output_shape, norm_size=120)
+    model, _ = build_model(input_shape, output_shape, norm_size=120)
+    return model
 
 
 if __name__ == '__main__':
