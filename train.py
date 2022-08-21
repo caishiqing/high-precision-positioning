@@ -166,7 +166,9 @@ class PretrainEngine(TrainEngine):
                 print("Load pretrained weights from {}".format(pretrained_path))
                 model.load_weights(pretrained_path)
 
-            mbs_model.compile(optimizer=optimizer, loss=tf.keras.losses.SparseCategoricalCrossentropy())
+            mbs_model.compile(optimizer=optimizer,
+                              loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+                              metrics=['accuracy'])
             mbs_model.summary()
             mbs_model.fit(x=train_data,
                           epochs=self.epochs,
