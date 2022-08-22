@@ -135,8 +135,8 @@ class PretrainEngine(TrainEngine):
                  save_path, pretrained_path=None, verbose=1):
 
         strategy = self._init_environ()
-        x_train_shape = train_data.shape
-        x_valid_shape = valid_data.shape
+        x_train_shape = train_data[0].shape
+        x_valid_shape = valid_data[0].shape
 
         autoturn = tf.data.AUTOTUNE
         augment = RandomMaskBS(18)
