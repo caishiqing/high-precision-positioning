@@ -166,7 +166,7 @@ class PretrainEngine(TrainEngine):
                 model.load_weights(pretrained_path)
 
             mbs_model.compile(optimizer=optimizer,
-                              loss=tf.keras.losses.mse)
+                              loss=tf.keras.losses.mae)
             mbs_model.summary()
             mbs_model.fit(x=train_data,
                           epochs=self.epochs,
