@@ -44,6 +44,7 @@ def pretrain(data_file, label_file, save_path,
     y = np.concatenate([yi, yj], axis=-1).reshape([len(x), 72, 64])
     test_size = kwargs.pop('test_size', 0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
+    del x
 
     train_engine = PretrainEngine(batch_size=kwargs.pop('batch_size', 128),
                                   infer_batch_size=kwargs.pop('infer_batch_size', 128),
