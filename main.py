@@ -38,9 +38,9 @@ def pretrain(data_file, label_file, save_path,
 
     x, _ = load_data(data_file, label_file)
     u, s, v = np.linalg.svd(np.reshape(x[:, :, 0, :], [len(x) * 72, 256]), False)
-    yi = np.matmul(np.matmul(u[:, :32], np.diag(s[:32])), v[:32, :])
+    yi = u[:, :32]
     u, s, v = np.linalg.svd(np.reshape(x[:, :, 1, :], [len(x) * 72, 256]), False)
-    yj = np.matmul(np.matmul(u[:, :32], np.diag(s[:32])), v[:32, :])
+    yj = u[:, :32]
     y = np.concatenate([yi, yj], axis=-1).reshape([len(x), 72, 64])
     test_size = kwargs.pop('test_size', 0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
