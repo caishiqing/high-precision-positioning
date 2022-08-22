@@ -190,4 +190,3 @@ if __name__ == '__main__':
     dataset = dataset.map(augment).batch(1000)
     xx, yy = list(dataset)[0]
     pass
-np.linalg.inv()
