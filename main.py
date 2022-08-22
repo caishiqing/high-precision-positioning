@@ -36,9 +36,14 @@ def train(data_file, label_file, save_path,
 def pretrain(data_file, label_file, save_path,
              pretrained_path=None, **kwargs):
 
-    x, y = load_data(data_file, label_file)
+    x, _ = load_data(data_file, label_file)
+    u, s, v = np.linalg.svd(np.reshape(x[:, :, 0, :], [len(x) * 72, 256]), False)
+    yi = np.matmul(np.matmul(u[:, :32], np.diag(s[:32])), v[:32, :])
+    u, s, v = np.linalg.svd(np.reshape(x[:, :, 1, :], [len(x) * 72, 256]), False)
+    yj = np.matmul(np.matmul(u[:, :32], np.diag(s[:32])), v[:32, :])
+    y = np.concatenate([yi, yj], axis=-1)
     test_size = kwargs.pop('test_size', 0.1)
-    x_train, x_valid, _, _ = train_test_split(x, y, test_size=test_size)
+    x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
 
     train_engine = PretrainEngine(batch_size=kwargs.pop('batch_size', 128),
                                   infer_batch_size=kwargs.pop('infer_batch_size', 128),
@@ -48,8 +53,8 @@ def pretrain(data_file, label_file, save_path,
 
     train_process = Process(target=train_engine,
                             args=(
-                                x_train,
-                                x_valid,
+                                (x_train, y_train),
+                                (x_valid, y_valid),
                                 save_path,
                                 pretrained_path,
                                 kwargs.pop('verbose', 1)
