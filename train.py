@@ -20,9 +20,12 @@ class MaskBS(object):
         mask = np.zeros(total_bs, dtype=np.float32)
         mask[[0, 5, 12, 17]] = 1
         mask = tf.constant(mask)
-        mask = mask[:, tf.newaxis, tf.newaxis, tf.newaxis]
-        mask = tf.tile(mask, [1, 4, 1, 1])
-        self._mask = tf.reshape(mask, [-1, 1, 1])
+        # mask = mask[:, tf.newaxis, tf.newaxis, tf.newaxis]
+        # mask = tf.tile(mask, [1, 4, 1, 1])
+        # self._mask = tf.reshape(mask, [-1, 1, 1])
+        mask = mask[:, tf.newaxis, tf.newaxis]
+        mask = tf.tile(mask, [1, 4, 1])
+        self._mask = tf.reshape(mask, [-1, 1])
 
     def __call__(self, x, y):
         x = tf.cond(tf.random.uniform([]) < self.mask_rate,
