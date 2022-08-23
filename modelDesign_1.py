@@ -323,12 +323,12 @@ def build_model(input_shape,
     # h = TimeReduction(h)
     h = layers.Dense(embed_dim)(x)
     h = layers.Dropout(dropout)(h)
-    h = layers.BatchNormalization()(h)
+    h = layers.LayerNormalization()(h)
     h = layers.Activation('relu')(h)
     h = AntennaMasking()([x, h])
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
-    h = layers.BatchNormalization()(h)
+    h = layers.LayerNormalization()(h)
     h = layers.Activation('relu')(h)
 
     for _ in range(num_attention_layers):
