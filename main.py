@@ -1,5 +1,6 @@
 from sklearn.model_selection import train_test_split
 from train import TrainEngine,  PretrainEngine, load_data
+from sklearn.decomposition import PCA, TruncatedSVD
 from multiprocessing import Process
 import numpy as np
 import fire
@@ -9,6 +10,8 @@ def train(data_file, label_file, save_path,
           pretrained_path=None, **kwargs):
 
     x, y = load_data(data_file, label_file)
+    svd = TruncatedSVD(128)
+    x = svd.fit_transform(x.reshape([len(x) * 72, -1])).reshape([len(x), 72, -1])
     x = x[:len(y)]
     y /= 120
     test_size = kwargs.pop('test_size', 0.1)

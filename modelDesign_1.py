@@ -316,13 +316,12 @@ def build_model(input_shape,
                 dropout=0.0,
                 norm_size=None):
 
-    num_antennas, _, length = input_shape
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    h = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
-    h = TimeReduction(h)
-    h = layers.Dense(embed_dim)(h)
+    # h = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
+    # h = TimeReduction(h)
+    h = layers.Dense(embed_dim)(x)
     h = layers.Dropout(dropout)(h)
     h = layers.BatchNormalization()(h)
     h = layers.Activation('relu')(h)
