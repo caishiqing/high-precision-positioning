@@ -3,6 +3,19 @@ import tensorflow as tf
 import types
 
 
+bs_masks = [
+    [0, 5, 12, 17],
+    [0, 5, 12],
+    [0, 5, 17],
+    [5, 12, 17],
+    [0, 12, 17],
+    [2, 6, 10, 14],
+    [3, 7, 11, 15],
+    [1, 4, 13, 16],
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+]
+
+
 class MultiHeadAttention(layers.Layer):
     def __init__(self,
                  num_heads,
@@ -211,88 +224,6 @@ def Residual(fn, res, dropout=0.0):
     return x
 
 
-# def TimeReduction(x):
-#     x = layers.Lambda(lambda x: x[:, :, :128, :])(x)
-#     x = layers.TimeDistributed(layers.Conv1D(8, 3, padding="same"))(x)
-#     x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
-#     x = Residual(
-#         tf.keras.Sequential(
-#             layers=[
-#                 layers.TimeDistributed(layers.Conv1D(8, 1, padding='same')),
-#                 layers.TimeDistributed(layers.BatchNormalization()),
-#                 layers.TimeDistributed(layers.LeakyReLU()),
-#                 layers.TimeDistributed(layers.Conv1D(8, 3, padding='same'))
-#             ]
-#         ),
-#         x
-#     )
-#     x = layers.BatchNormalization()(x)
-#     x = layers.LeakyReLU()(x)
-
-#     x = layers.TimeDistributed(layers.Conv1D(16, 3, padding="same"))(x)
-#     x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
-#     x = Residual(
-#         tf.keras.Sequential(
-#             layers=[
-#                 layers.TimeDistributed(layers.Conv1D(16, 1, padding='same')),
-#                 layers.TimeDistributed(layers.BatchNormalization()),
-#                 layers.TimeDistributed(layers.LeakyReLU()),
-#                 layers.TimeDistributed(layers.Conv1D(16, 3, padding='same'))
-#             ]
-#         ),
-#         x
-#     )
-#     x = layers.BatchNormalization()(x)
-#     x = layers.LeakyReLU()(x)
-
-#     x = layers.TimeDistributed(layers.Conv1D(32, 3, padding="same"))(x)
-#     x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
-#     x = Residual(
-#         tf.keras.Sequential(
-#             layers=[
-#                 layers.TimeDistributed(layers.Conv1D(32, 1, padding='same')),
-#                 layers.TimeDistributed(layers.BatchNormalization()),
-#                 layers.TimeDistributed(layers.LeakyReLU()),
-#                 layers.TimeDistributed(layers.Conv1D(32, 3, padding='same'))
-#             ]
-#         ),
-#         x
-#     )
-#     x = layers.BatchNormalization()(x)
-#     x = layers.LeakyReLU()(x)
-
-#     x = layers.TimeDistributed(layers.Conv1D(64, 3, padding="same"))(x)
-#     x = layers.TimeDistributed(layers.MaxPool1D(padding="same"))(x)
-#     x = Residual(
-#         tf.keras.Sequential(
-#             layers=[
-#                 layers.TimeDistributed(layers.Conv1D(64, 1, padding='same')),
-#                 layers.TimeDistributed(layers.BatchNormalization()),
-#                 layers.TimeDistributed(layers.LeakyReLU()),
-#                 layers.TimeDistributed(layers.Conv1D(64, 3, padding='same'))
-#             ]
-#         ),
-#         x
-#     )
-#     x = layers.BatchNormalization()(x)
-#     x = layers.LeakyReLU()(x)
-
-#     x = layers.TimeDistributed(layers.Flatten())(x)
-#     return x
-
-
-# class RecoverSignal(layers.Layer):
-#     def call(self, x):
-#         image, real = x[:, :, :, 0], x[:, :, :, 1]
-#         amplitude = tf.math.sqrt(tf.pow(image, 2) + tf.pow(real, 2))
-#         phase = tf.math.atan(tf.math.divide_no_nan(image, real))
-#         x = tf.stack([amplitude, phase], axis=-1)
-#         return x
-
-#     def compute_output_shape(self, input_shape):
-#         return input_shape
-
-
 def TimeReduction(x):
     xs = []
     for xi, filters in zip(tf.split(x, 4, axis=-2), [128, 48, 24, 8]):
@@ -307,6 +238,41 @@ def TimeReduction(x):
     return x
 
 
+class SVD(layers.Layer):
+    def __init__(self, units=128, **kwargs):
+        super(SVD, self).__init__(**kwargs)
+        self.units = units
+        self.supports_masking = True
+        self.flatten = layers.TimeDistributed(layers.Flatten())
+
+    def build(self, input_shape):
+        _, _, num_channels, length = input_shape
+        self.transform_ = self.add_weight(name='transform_',
+                                          shape=(num_channels*length, self.units),
+                                          dtype=tf.float32,
+                                          initializer='glorot_uniform')
+        self.built = True
+
+    def call(self, inputs):
+        x = self.flatten(inputs)
+        x = tf.matmul(x, self.transform_)
+        return x
+
+    def compute_mask(self, inputs, mask=None):
+        x = self.flatten(inputs)
+        mask = tf.reduce_any(tf.not_equal(x, 0), axis=-1)
+        return mask
+
+    def compute_output_shape(self, input_shape):
+        b, s, _, _ = input_shape
+        return b, s, self.units
+
+    def get_config(self):
+        config = super(SVD, self).get_config()
+        config['units'] = self.units
+        return config
+
+
 def build_model(input_shape,
                 output_shape=2,
                 embed_dim=256,
@@ -314,22 +280,21 @@ def build_model(input_shape,
                 num_heads=8,
                 num_attention_layers=6,
                 dropout=0.0,
+                svd_weight=None,
                 norm_size=None):
 
-    num_antennas, _, length = input_shape
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    h = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
-    h = TimeReduction(h)
-    h = layers.Dense(embed_dim)(h)
-    h = layers.Dropout(dropout)(h)
-    h = layers.BatchNormalization()(h)
-    h = layers.Activation('relu')(h)
-    h = AntennaMasking()([x, h])
+    svd = SVD(embed_dim)
+    if svd_weight is not None:
+        svd.set_weights([svd_weight])
+        svd.trainable = False
+
+    h = svd(x)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
-    h = layers.BatchNormalization()(h)
+    h = layers.LayerNormalization()(h)
     h = layers.Activation('relu')(h)
 
     for _ in range(num_attention_layers):
@@ -351,13 +316,9 @@ def build_model(input_shape,
     if norm_size is not None:
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
-    bs = layers.Dense(4*length)(h)
-    bs = layers.Reshape([4, 2, length // 2])(bs)
-
     model = tf.keras.Model(x, y)
     model.save = types.MethodType(save, model)
-    mbs_model = tf.keras.Model(x, bs)
-    return model, mbs_model
+    return model
 
 
 def save(cls, filepath, overwrite=True, **kwargs):
