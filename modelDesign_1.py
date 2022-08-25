@@ -245,6 +245,7 @@ def SVD(x, units=128, weights=None):
     dense = layers.Dense(units, use_bias=False)
     x = dense(x)
     if weights is not None:
+        print('Load svd weights!')
         if not isinstance(weights, list):
             weights = [weights]
         dense.set_weights(weights)
@@ -338,8 +339,7 @@ def build_model(input_shape,
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    # svd = SVD(x, embed_dim, svd_weight)
-    h = TimeReduction(x)
+    h = SVD(x, embed_dim, svd_weight)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
