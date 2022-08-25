@@ -273,7 +273,7 @@ class SVD(layers.Layer):
         return config
     
     
-class MultiHeadBS(layers.layer):
+class MultiHeadBS(layers.Layer):
     def __init__(self,masks,min_bs=3,**kwargs):
         super(MultiHeadBS,self)
 
