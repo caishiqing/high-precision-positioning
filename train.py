@@ -128,10 +128,9 @@ class TrainEngine:
             optimizer = AdamWarmup(warmup_steps=int(total_steps * 0.1),
                                    decay_steps=total_steps-int(total_steps * 0.1),
                                    initial_learning_rate=self.learning_rate)
-            print('Building model ...')
+            print(x_train_shape)
             model, _ = build_model(x_train_shape[1:], 2,
                                    dropout=self.dropout)
-            print('Done!')
             if pretrained_path is not None:
                 print("Load pretrained weights from {}".format(pretrained_path))
                 model.load_weights(pretrained_path)
