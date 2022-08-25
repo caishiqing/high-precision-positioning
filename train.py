@@ -100,7 +100,7 @@ class TrainEngine:
         x_train_shape = train_data[0].shape
         x_valid_shape = valid_data[0].shape
 
-        autotune = tf.data.AUTOTUNE
+        autotune = tf.data.experimental.AUTOTUNE
         train_data = tf.data.Dataset.from_tensor_slices(
             train_data).map(self.augment, autotune).batch(self.batch_size, self.drop_remainder)
         valid_data = tf.data.Dataset.from_tensor_slices(

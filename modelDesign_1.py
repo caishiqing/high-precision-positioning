@@ -1,5 +1,6 @@
 from tensorflow.keras import layers
 import tensorflow as tf
+import numpy as np
 import types
 
 
@@ -274,16 +275,26 @@ class SVD(layers.Layer):
 
 
 class MultiHeadBS(layers.TimeDistributed):
-    def __init__(self, layer, masks,
+    def __init__(self, layer, bs_masks,
                  num_bs=18,
                  num_antennas_per_bs=4,
                  min_bs=3,
                  **kwargs):
         super(MultiHeadBS, self).__init__(layer, **kwargs)
-        self.masks = masks
+        self.bs_masks = bs_masks
         self.num_bs = num_bs
         self.num_antennas_per_bs = num_antennas_per_bs
         self.min_bs = min_bs
+        
+    def build(self,input_shape):
+        B,N,_,T=input_shape
+        assert self.num_bs * self.num_antennas_per_bs == N 
+        
+        mask=np.zeros((len(self.bs_masks), self.num_bs), dtype=np.float32)
+        for i, bs_mask in enumerate(self.bs_masks):
+            mask[i][bs_mask]=1
+            
+        self.mask=tf.identity(mask)
 
     def call(self, x):
         pass
