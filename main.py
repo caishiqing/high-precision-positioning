@@ -12,7 +12,7 @@ def train(data_file, label_file, save_path,
           pretrained_path=None, mask_mode=1, **kwargs):
 
     x, y = load_data(data_file, label_file)
-    svd = TruncatedSVD(256).fit(x.reshape([len(x) * 72, -1]))
+    svd_weight = TruncatedSVD(256).fit(x.reshape([len(x) * 72, -1])).components_.T
     x = x[:len(y)]
     test_size = kwargs.pop('test_size', 0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
@@ -29,7 +29,7 @@ def train(data_file, label_file, save_path,
                                learning_rate=kwargs.pop('learning_rate', 1e-3),
                                dropout=kwargs.pop('dropout', 0.0),
                                masks=bs_masks,
-                               svd_weight=svd.components_.T)
+                               svd_weight=svd_weight)
 
     train_process = Process(target=train_engine,
                             args=(
