@@ -282,7 +282,7 @@ class MultiHeadBS(layers.TimeDistributed):
                  **kwargs):
         super(MultiHeadBS, self).__init__(layer, **kwargs)
         self.bs_masks = bs_masks
-        self.num_heads=len(bs_masks)
+        self.num_heads = len(bs_masks)
         self.num_bs = num_bs
         self.num_antennas_per_bs = num_antennas_per_bs
         self.min_bs = min_bs
@@ -302,8 +302,10 @@ class MultiHeadBS(layers.TimeDistributed):
     def call(self, x):
         x = tf.reshape(x, [-1, self.num_bs, self.num_antennas_per_bs, 2, self.T])
         x = self.mask * tf.expand_dims(x, 1)  # (B, N, 18, 4, 2, 256)
-        bs_mask=tf.reduce_any(tf.not_equal(x,0),axis=[3,4,5])  # (B, N, 18)
-        
+        bs_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4, 5])  # (B, N, 18)
+        active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=2)  # (B, N)
+        head_mask = tf.greater_equal(active_bs_num, self.min_bs)
+
 
 def build_model(input_shape,
                 output_shape=2,

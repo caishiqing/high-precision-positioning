@@ -109,14 +109,13 @@ class TrainEngine:
 
         x_train_shape = train_data[0].shape
         x_valid_shape = valid_data[0].shape
-        print('Process data ...')
+
         autotune = tf.data.experimental.AUTOTUNE
         train_data = tf.data.Dataset.from_tensor_slices(
             train_data).map(self.augment, autotune).batch(self.batch_size, self.drop_remainder)
         valid_data = tf.data.Dataset.from_tensor_slices(
             valid_data).map(self.augment, autotune).batch(x_valid_shape[0])
         valid_data = list(valid_data)[0]
-        print('Done!')
 
         checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
                                                         save_best_only=True,
@@ -125,11 +124,12 @@ class TrainEngine:
                                                         monitor='val_loss')
 
         with strategy.scope():
+            print('Build optimizer ...')
             total_steps = x_train_shape[0] // self.batch_size * self.epochs
             optimizer = AdamWarmup(warmup_steps=int(total_steps * 0.1),
                                    decay_steps=total_steps-int(total_steps * 0.1),
                                    initial_learning_rate=self.learning_rate)
-
+            print('Done!')
             model, _ = build_model(x_train_shape[1:], 2,
                                    dropout=self.dropout,
                                    svd_weight=self.svd_weight)
