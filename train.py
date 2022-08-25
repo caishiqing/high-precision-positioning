@@ -107,7 +107,6 @@ class TrainEngine:
             valid_data).map(self.augment, autotune).batch(x_valid_shape[0])
         valid_data = list(valid_data)[0]
 
-        train_data = train_data.batch(self.batch_size, drop_remainder=self.drop_remainder)
         checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
                                                         save_best_only=True,
                                                         save_weights_only=False,

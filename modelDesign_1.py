@@ -271,6 +271,11 @@ class SVD(layers.Layer):
         config = super(SVD, self).get_config()
         config['units'] = self.units
         return config
+    
+    
+class MultiHeadBS(layers.layer):
+    def __init__(self,masks,min_bs=3,**kwargs):
+        super(MultiHeadBS,self)
 
 
 def build_model(input_shape,
