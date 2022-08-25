@@ -271,11 +271,22 @@ class SVD(layers.Layer):
         config = super(SVD, self).get_config()
         config['units'] = self.units
         return config
-    
-    
-class MultiHeadBS(layers.Layer):
-    def __init__(self,masks,min_bs=3,**kwargs):
-        super(MultiHeadBS,self)
+
+
+class MultiHeadBS(layers.TimeDistributed):
+    def __init__(self, layer, masks,
+                 num_bs=18,
+                 num_antennas_per_bs=4,
+                 min_bs=3,
+                 **kwargs):
+        super(MultiHeadBS, self).__init__(layer, **kwargs)
+        self.masks = masks
+        self.num_bs = num_bs
+        self.num_antennas_per_bs = num_antennas_per_bs
+        self.min_bs = min_bs
+
+    def call(self, x):
+        pass
 
 
 def build_model(input_shape,
@@ -292,15 +303,15 @@ def build_model(input_shape,
 
     x = layers.Input(shape=input_shape)
     svd = SVD(embed_dim)
-    if svd_weight is not None:
-        svd.set_weights([svd_weight])
-        svd.trainable = False
-
     h = svd(x)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
     h = layers.Activation('relu')(h)
+
+    if svd_weight is not None:
+        svd.set_weights([svd_weight])
+        svd.trainable = False
 
     for _ in range(num_attention_layers):
         h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
