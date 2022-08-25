@@ -96,7 +96,17 @@ class TrainEngine:
     def __call__(self, train_data, valid_data,
                  save_path, pretrained_path=None, verbose=1):
 
-        strategy = self._init_environ()
+        try:
+            tpu = tf.distribute.cluster_resolver.TPUClusterResolver()
+            print('Running on TPU ', tpu.master())
+            tf.config.experimental_connect_to_cluster(tpu)
+            tf.tpu.experimental.initialize_tpu_system(tpu)
+            strategy = tf.distribute.experimental.TPUStrategy(tpu)
+            self.drop_remainder = True
+        except:
+            print("Runing on gpu or cpu")
+            strategy = tf.distribute.get_strategy()
+
         x_train_shape = train_data[0].shape
         x_valid_shape = valid_data[0].shape
         print('Process data ...')

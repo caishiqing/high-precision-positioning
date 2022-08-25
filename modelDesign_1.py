@@ -291,6 +291,7 @@ class MultiHeadBS(layers.TimeDistributed):
     def build(self, input_shape):
         B, N, _, T = input_shape
         assert self.num_bs * self.num_antennas_per_bs == N
+        self.T=T
 
         mask = np.zeros((len(self.bs_masks), self.num_bs), dtype=np.float32)
         for i, bs_mask in enumerate(self.bs_masks):
@@ -300,7 +301,9 @@ class MultiHeadBS(layers.TimeDistributed):
         super(MultiHeadBS, self).build((B, len(self.bs_masks), N, 2, T))
 
     def call(self, x):
-        pass
+        x=tf.reshape(x,[-1,self.num_bs,self.num_antennas_per_bs,2,self.T])
+        x=self.mask * tf.expand_dims(x, 1)
+        
 
 
 def build_model(input_shape,
