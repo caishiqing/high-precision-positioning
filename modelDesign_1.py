@@ -240,38 +240,51 @@ def TimeReduction(x):
     return x
 
 
-class SVD(layers.Layer):
-    def __init__(self, units=128, **kwargs):
-        super(SVD, self).__init__(**kwargs)
-        self.units = units
-        self.supports_masking = True
-        self.flatten = layers.TimeDistributed(layers.Flatten())
+def SVD(x, units=128, weights=None):
+    x = layers.TimeDistributed(layers.Flatten())(x)
+    dense = layers.Dense(units, use_bias=False)
+    x = dense(x)
+    if weights is not None:
+        if not isinstance(weights, list):
+            weights = [weights]
+        dense.set_weights(weights)
+        dense.trainable = False
 
-    def build(self, input_shape):
-        _, _, num_channels, length = input_shape
-        self.transform_ = self.add_weight(name='transform_',
-                                          shape=(num_channels*length, self.units),
-                                          dtype=tf.float32,
-                                          initializer='glorot_uniform')
-        self.built = True
+    return x
 
-    def call(self, inputs):
-        x = self.flatten(inputs)
-        x = tf.matmul(x, self.transform_)
-        return x
 
-    def compute_mask(self, inputs, mask=None):
-        mask = tf.reduce_any(tf.not_equal(inputs, 0), axis=[2, 3])
-        return mask
+# class SVD(layers.Layer):
+#     def __init__(self, units=128, **kwargs):
+#         super(SVD, self).__init__(**kwargs)
+#         self.units = units
+#         self.supports_masking = True
+#         self.flatten = layers.TimeDistributed(layers.Flatten())
 
-    def compute_output_shape(self, input_shape):
-        b, s, _, _ = input_shape
-        return b, s, self.units
+#     def build(self, input_shape):
+#         _, _, num_channels, length = input_shape
+#         self.transform_ = self.add_weight(name='transform_',
+#                                           shape=(num_channels*length, self.units),
+#                                           dtype=tf.float32,
+#                                           initializer='glorot_uniform')
+#         self.built = True
 
-    def get_config(self):
-        config = super(SVD, self).get_config()
-        config['units'] = self.units
-        return config
+#     def call(self, inputs):
+#         x = self.flatten(inputs)
+#         x = tf.matmul(x, self.transform_)
+#         return x
+
+#     def compute_mask(self, inputs, mask=None):
+#         mask = tf.reduce_any(tf.not_equal(inputs, 0), axis=[2, 3])
+#         return mask
+
+#     def compute_output_shape(self, input_shape):
+#         b, s, _, _ = input_shape
+#         return b, s, self.units
+
+#     def get_config(self):
+#         config = super(SVD, self).get_config()
+#         config['units'] = self.units
+#         return config
 
 
 class MultiHeadBS(layers.TimeDistributed):
@@ -325,7 +338,7 @@ def build_model(input_shape,
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    # svd = SVD(embed_dim)
+    # svd = SVD(x, embed_dim, svd_weight)
     # h = svd(x)
     h = TimeReduction(x)
     h = AntennaEmbedding()(h)

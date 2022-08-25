@@ -96,16 +96,16 @@ class TrainEngine:
     def __call__(self, train_data, valid_data,
                  save_path, pretrained_path=None, verbose=1):
 
-        try:
-            tpu = tf.distribute.cluster_resolver.TPUClusterResolver()
-            print('Running on TPU ', tpu.master())
-            tf.config.experimental_connect_to_cluster(tpu)
-            tf.tpu.experimental.initialize_tpu_system(tpu)
-            strategy = tf.distribute.experimental.TPUStrategy(tpu)
-            self.drop_remainder = True
-        except:
-            print("Runing on gpu or cpu")
-            strategy = tf.distribute.get_strategy()
+        # try:
+        #     tpu = tf.distribute.cluster_resolver.TPUClusterResolver()
+        #     print('Running on TPU ', tpu.master())
+        #     tf.config.experimental_connect_to_cluster(tpu)
+        #     tf.tpu.experimental.initialize_tpu_system(tpu)
+        #     strategy = tf.distribute.experimental.TPUStrategy(tpu)
+        #     self.drop_remainder = True
+        # except:
+        #     print("Runing on gpu or cpu")
+        #     strategy = tf.distribute.get_strategy()
 
         x_train_shape = train_data[0].shape
         x_valid_shape = valid_data[0].shape
@@ -123,27 +123,27 @@ class TrainEngine:
                                                         mode='min',
                                                         monitor='val_loss')
 
-        with strategy.scope():
-            total_steps = x_train_shape[0] // self.batch_size * self.epochs
-            optimizer = AdamWarmup(warmup_steps=int(total_steps * 0.1),
-                                   decay_steps=total_steps-int(total_steps * 0.1),
-                                   initial_learning_rate=self.learning_rate)
-            print(x_train_shape)
-            model, _ = build_model(x_train_shape[1:], 2,
-                                   dropout=self.dropout)
-            if pretrained_path is not None:
-                print("Load pretrained weights from {}".format(pretrained_path))
-                model.load_weights(pretrained_path)
+        # with strategy.scope():
+        total_steps = x_train_shape[0] // self.batch_size * self.epochs
+        optimizer = AdamWarmup(warmup_steps=int(total_steps * 0.1),
+                               decay_steps=total_steps-int(total_steps * 0.1),
+                               initial_learning_rate=self.learning_rate)
 
-            model.compile(optimizer=optimizer, loss=tf.keras.losses.mae)
-            model.summary()
-            model.fit(x=train_data,
-                      epochs=self.epochs,
-                      validation_data=valid_data,
-                      validation_batch_size=self.infer_batch_size,
-                      callbacks=[checkpoint],
-                      verbose=verbose,
-                      shuffle=True)
+        model, _ = build_model(x_train_shape[1:], 2,
+                               dropout=self.dropout)
+        if pretrained_path is not None:
+            print("Load pretrained weights from {}".format(pretrained_path))
+            model.load_weights(pretrained_path)
+
+        model.compile(optimizer=optimizer, loss=tf.keras.losses.mae)
+        model.summary()
+        model.fit(x=train_data,
+                  epochs=self.epochs,
+                  validation_data=valid_data,
+                  validation_batch_size=self.infer_batch_size,
+                  callbacks=[checkpoint],
+                  verbose=verbose,
+                  shuffle=True)
 
         print(checkpoint.best)
         model.load_weights(save_path)
