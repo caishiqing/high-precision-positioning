@@ -226,6 +226,7 @@ def Residual(fn, res, dropout=0.0):
 
 
 def TimeReduction(x):
+    x = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
     xs = []
     for xi, filters in zip(tf.split(x, 4, axis=-2), [128, 48, 24, 8]):
         xi = layers.TimeDistributed(layers.ZeroPadding1D(2))(xi)
@@ -324,12 +325,17 @@ def build_model(input_shape,
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    svd = SVD(embed_dim)
-    h = svd(x)
+    # svd = SVD(embed_dim)
+    # h = svd(x)
+    h = TimeReduction(x)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
     h = layers.Activation('relu')(h)
+
+    # if svd_weight is not None:
+    #     svd.set_weights([svd_weight])
+    #     svd.trainable = False
 
     for _ in range(num_attention_layers):
         h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
@@ -351,11 +357,6 @@ def build_model(input_shape,
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
     model = tf.keras.Model(x, y)
-
-    if svd_weight is not None:
-        svd.set_weights([svd_weight])
-        svd.trainable = False
-
     model.save = types.MethodType(save, model)
     return model
 
