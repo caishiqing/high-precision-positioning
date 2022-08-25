@@ -296,7 +296,10 @@ class MultiHeadBS(layers.TimeDistributed):
         for i, bs_mask in enumerate(self.bs_masks):
             mask[i][bs_mask] = 1
 
+        # shape = (B, N, 18, 1, 1, 1)
         self.mask = tf.identity(mask)[tf.newaxis, :, :, tf.newaxis, tf.newaxis, tf.newaxis]
+        self.mask = tf.tile(self.mask, [1, 1, 1, self.num_antennas_per_bs, 1, 1])
+        self.mask = tf.reshape(self.mask, [-1, self.num_heads, ])
         super(MultiHeadBS, self).build((B, self.num_heads, S, 2, T))
 
     def call(self, x):
@@ -305,6 +308,8 @@ class MultiHeadBS(layers.TimeDistributed):
         bs_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4, 5])  # (B, N, 18)
         active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=2)  # (B, N)
         head_mask = tf.greater_equal(active_bs_num, self.min_bs)
+
+        x = tf.reshape(x, [-1, self.num_heads, self.num_bs * self.num_antennas_per_bs, 2, self.T])
 
 
 def build_model(input_shape,
@@ -327,10 +332,6 @@ def build_model(input_shape,
     h = layers.LayerNormalization()(h)
     h = layers.Activation('relu')(h)
 
-    if svd_weight is not None:
-        svd.set_weights([svd_weight])
-        svd.trainable = False
-
     for _ in range(num_attention_layers):
         h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
         h = layers.LayerNormalization()(h)
@@ -351,6 +352,11 @@ def build_model(input_shape,
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
     model = tf.keras.Model(x, y)
+
+    if svd_weight is not None:
+        svd.set_weights([svd_weight])
+        svd.trainable = False
+
     model.save = types.MethodType(save, model)
     return model
 
