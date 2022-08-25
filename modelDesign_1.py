@@ -3,6 +3,8 @@ import tensorflow as tf
 import numpy as np
 import types
 
+from train import MaskBS
+
 
 bs_masks = [
     [0, 5, 12, 17],
@@ -285,16 +287,17 @@ class MultiHeadBS(layers.TimeDistributed):
         self.num_bs = num_bs
         self.num_antennas_per_bs = num_antennas_per_bs
         self.min_bs = min_bs
-        
-    def build(self,input_shape):
-        B,N,_,T=input_shape
-        assert self.num_bs * self.num_antennas_per_bs == N 
-        
-        mask=np.zeros((len(self.bs_masks), self.num_bs), dtype=np.float32)
+
+    def build(self, input_shape):
+        B, N, _, T = input_shape
+        assert self.num_bs * self.num_antennas_per_bs == N
+
+        mask = np.zeros((len(self.bs_masks), self.num_bs), dtype=np.float32)
         for i, bs_mask in enumerate(self.bs_masks):
-            mask[i][bs_mask]=1
-            
-        self.mask=tf.identity(mask)
+            mask[i][bs_mask] = 1
+
+        self.mask = tf.identity(mask)[tf.newaxis, :, :, tf.newaxis, tf.newaxis, tf.newaxis]
+        super(MultiHeadBS, self).build((B, len(self.bs_masks), N, 2, T))
 
     def call(self, x):
         pass

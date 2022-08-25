@@ -99,13 +99,14 @@ class TrainEngine:
         strategy = self._init_environ()
         x_train_shape = train_data[0].shape
         x_valid_shape = valid_data[0].shape
-
+        print('Process data ...')
         autotune = tf.data.experimental.AUTOTUNE
         train_data = tf.data.Dataset.from_tensor_slices(
             train_data).map(self.augment, autotune).batch(self.batch_size, self.drop_remainder)
         valid_data = tf.data.Dataset.from_tensor_slices(
             valid_data).map(self.augment, autotune).batch(x_valid_shape[0])
         valid_data = list(valid_data)[0]
+        print('Done!')
 
         checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
                                                         save_best_only=True,
