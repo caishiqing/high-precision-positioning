@@ -32,16 +32,23 @@ def train(data_file, label_file, save_path,
                                masks=bs_masks,
                                svd_weight=svd_weight)
 
-    train_process = Process(target=train_engine,
-                            args=(
-                                (x_train, y_train),
-                                (x_valid, y_valid),
-                                save_path,
-                                pretrained_path,
-                                kwargs.pop('verbose', 1)
-                            ))
-    train_process.start()
-    train_process.join()
+    # train_process = Process(target=train_engine,
+    #                         args=(
+    #                             (x_train, y_train),
+    #                             (x_valid, y_valid),
+    #                             save_path,
+    #                             pretrained_path,
+    #                             kwargs.pop('verbose', 1)
+    #                         ))
+
+    # train_process.start()
+    # train_process.join()
+
+    train_engine((x_train, y_train),
+                 (x_valid, y_valid),
+                 save_path,
+                 pretrained_path=pretrained_path,
+                 verbose=kwargs.pop('verbose', 1))
 
 
 def pretrain(data_file, label_file, save_path,

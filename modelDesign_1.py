@@ -339,16 +339,11 @@ def build_model(input_shape,
 
     x = layers.Input(shape=input_shape)
     # svd = SVD(x, embed_dim, svd_weight)
-    # h = svd(x)
     h = TimeReduction(x)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
     h = layers.Activation('relu')(h)
-
-    # if svd_weight is not None:
-    #     svd.set_weights([svd_weight])
-    #     svd.trainable = False
 
     for _ in range(num_attention_layers):
         h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
