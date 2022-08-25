@@ -99,15 +99,13 @@ class TrainEngine:
         strategy = self._init_environ()
         x_train_shape = train_data[0].shape
         x_valid_shape = valid_data[0].shape
-        train_data = tf.data.Dataset.from_tensor_slices(train_data)
-        if self.mask_rate > 0:
-            print("Masking BS ...")
-            autoturn = tf.data.AUTOTUNE
-            augment = MaskBS(18, self.mask_rate)
-            train_data = train_data.map(augment, autoturn)
-            valid_data = tf.data.Dataset.from_tensor_slices(
-                valid_data).map(augment, autoturn)
-            valid_data = list(valid_data.batch(x_valid_shape[0]))[0]
+
+        autotune = tf.data.AUTOTUNE
+        train_data = tf.data.Dataset.from_tensor_slices(
+            train_data).map(self.augment, autotune).batch(self.batch_size, self.drop_remainder)
+        valid_data = tf.data.Dataset.from_tensor_slices(
+            valid_data).map(self.augment, autotune).batch(x_valid_shape[0])
+        valid_data = list(valid_data)[0]
 
         train_data = train_data.batch(self.batch_size, drop_remainder=self.drop_remainder)
         checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
@@ -122,8 +120,8 @@ class TrainEngine:
                                    decay_steps=total_steps-int(total_steps * 0.1),
                                    initial_learning_rate=self.learning_rate)
 
-            model, _ = build_model(x_train_shape[1:], 2, 
-                                   dropout=self.dropout, 
+            model, _ = build_model(x_train_shape[1:], 2,
+                                   dropout=self.dropout,
                                    svd_weight=self.svd_weight)
             if pretrained_path is not None:
                 print("Load pretrained weights from {}".format(pretrained_path))
