@@ -3,8 +3,6 @@ import tensorflow as tf
 import numpy as np
 import types
 
-from train import MaskBS
-
 
 bs_masks = [
     [0, 5, 12, 17],
@@ -284,27 +282,28 @@ class MultiHeadBS(layers.TimeDistributed):
                  **kwargs):
         super(MultiHeadBS, self).__init__(layer, **kwargs)
         self.bs_masks = bs_masks
+        self.num_heads=len(bs_masks)
         self.num_bs = num_bs
         self.num_antennas_per_bs = num_antennas_per_bs
         self.min_bs = min_bs
 
     def build(self, input_shape):
-        B, N, _, T = input_shape
-        assert self.num_bs * self.num_antennas_per_bs == N
-        self.T=T
+        B, S, _, T = input_shape
+        assert self.num_bs * self.num_antennas_per_bs == S
+        self.T = T
 
-        mask = np.zeros((len(self.bs_masks), self.num_bs), dtype=np.float32)
+        mask = np.zeros((self.num_heads, self.num_bs), dtype=np.float32)
         for i, bs_mask in enumerate(self.bs_masks):
             mask[i][bs_mask] = 1
 
         self.mask = tf.identity(mask)[tf.newaxis, :, :, tf.newaxis, tf.newaxis, tf.newaxis]
-        super(MultiHeadBS, self).build((B, len(self.bs_masks), N, 2, T))
+        super(MultiHeadBS, self).build((B, self.num_heads, S, 2, T))
 
     def call(self, x):
-        x=tf.reshape(x,[-1,self.num_bs,self.num_antennas_per_bs,2,self.T])
-        x=self.mask * tf.expand_dims(x, 1)
+        x = tf.reshape(x, [-1, self.num_bs, self.num_antennas_per_bs, 2, self.T])
+        x = self.mask * tf.expand_dims(x, 1)  # (B, N, 18, 4, 2, 256)
+        bs_mask=tf.reduce_any(tf.not_equal(x,0),axis=[3,4,5])  # (B, N, 18)
         
-
 
 def build_model(input_shape,
                 output_shape=2,
