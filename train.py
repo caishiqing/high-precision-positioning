@@ -124,15 +124,13 @@ class TrainEngine:
                                                         monitor='val_loss')
 
         with strategy.scope():
-            print('Build optimizer ...')
             total_steps = x_train_shape[0] // self.batch_size * self.epochs
             optimizer = AdamWarmup(warmup_steps=int(total_steps * 0.1),
                                    decay_steps=total_steps-int(total_steps * 0.1),
                                    initial_learning_rate=self.learning_rate)
-            print('Done!')
+
             model, _ = build_model(x_train_shape[1:], 2,
-                                   dropout=self.dropout,
-                                   svd_weight=self.svd_weight)
+                                   dropout=self.dropout)
             if pretrained_path is not None:
                 print("Load pretrained weights from {}".format(pretrained_path))
                 model.load_weights(pretrained_path)

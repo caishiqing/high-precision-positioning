@@ -260,8 +260,7 @@ class SVD(layers.Layer):
         return x
 
     def compute_mask(self, inputs, mask=None):
-        x = self.flatten(inputs)
-        mask = tf.reduce_any(tf.not_equal(x, 0), axis=-1)
+        mask = tf.reduce_any(tf.not_equal(inputs, 0), axis=[2, 3])
         return mask
 
     def compute_output_shape(self, input_shape):
@@ -296,7 +295,7 @@ class MultiHeadBS(layers.TimeDistributed):
         for i, bs_mask in enumerate(self.bs_masks):
             mask[i][bs_mask] = 1
 
-        # shape = (B, N, 18, 1, 1, 1)
+        # shape = (1, N, 18, 1, 1, 1)
         self.mask = tf.identity(mask)[tf.newaxis, :, :, tf.newaxis, tf.newaxis, tf.newaxis]
         self.mask = tf.tile(self.mask, [1, 1, 1, self.num_antennas_per_bs, 1, 1])
         self.mask = tf.reshape(self.mask, [-1, self.num_heads, ])
