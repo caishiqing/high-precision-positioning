@@ -16,6 +16,7 @@ def train(data_file, label_file, save_path,
     x = x[:len(y)]
     test_size = kwargs.pop('test_size', 0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
+    del x, y
 
     if mask_mode == 1:
         bs_masks = masks1
