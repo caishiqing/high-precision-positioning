@@ -313,12 +313,11 @@ class MultiHeadBS(layers.TimeDistributed):
 
         self.mask = tf.identity(mask)[:, :, tf.newaxis]
         self.mask = tf.tile(self.mask, [1, 1, 4])
-        self.mask = tf.reshape(self.mask, [self.num_heads, -1])[:, :, tf.newaxis, tf.newaxis]
+        self.mask = tf.reshape(self.mask, [self.num_heads, -1])[tf.newaxis, tf.newaxis, :, :, tf.newaxis, tf.newaxis]
         super(MultiHeadBS, self).build((B, self.num_heads, S, 2, T))
 
     def call(self, x):
-        x *= tf.expand_dims(self.mask, 0)
-        x = self.mask * tf.expand_dims(x, 1)  # (B, N, 18, 4, 2, 256)
+        x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
         bs_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4, 5])  # (B, N, 18)
         active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=2)  # (B, N)
         head_mask = tf.greater_equal(active_bs_num, self.min_bs)
