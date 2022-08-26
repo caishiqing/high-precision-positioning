@@ -94,7 +94,6 @@ class TrainEngine:
 
     def __call__(self, train_data, valid_data, save_path,
                  pretrained_path=None, verbose=1):
-        tf.config.threading.set_inter_op_parallelism_threads(4)
         strategy = self._init_environ()
 
         x_train_shape = train_data[0].shape

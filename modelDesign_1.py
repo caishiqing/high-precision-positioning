@@ -372,3 +372,4 @@ if __name__ == '__main__':
 
     x = layers.Input((72, 2, 256))
     h = MultiHeadBS(bs_masks)(x)
+    pass
