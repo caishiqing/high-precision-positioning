@@ -255,40 +255,6 @@ def SVD(x, units=128, weights=None):
     return x
 
 
-# class SVD(layers.Layer):
-#     def __init__(self, units=128, **kwargs):
-#         super(SVD, self).__init__(**kwargs)
-#         self.units = units
-#         self.supports_masking = True
-#         self.flatten = layers.TimeDistributed(layers.Flatten())
-
-#     def build(self, input_shape):
-#         _, _, num_channels, length = input_shape
-#         self.transform_ = self.add_weight(name='transform_',
-#                                           shape=(num_channels*length, self.units),
-#                                           dtype=tf.float32,
-#                                           initializer='glorot_uniform')
-#         self.built = True
-
-#     def call(self, inputs):
-#         x = self.flatten(inputs)
-#         x = tf.matmul(x, self.transform_)
-#         return x
-
-#     def compute_mask(self, inputs, mask=None):
-#         mask = tf.reduce_any(tf.not_equal(inputs, 0), axis=[2, 3])
-#         return mask
-
-#     def compute_output_shape(self, input_shape):
-#         b, s, _, _ = input_shape
-#         return b, s, self.units
-
-#     def get_config(self):
-#         config = super(SVD, self).get_config()
-#         config['units'] = self.units
-#         return config
-
-
 class MultiHeadBS(layers.TimeDistributed):
     def __init__(self, layer, bs_masks,
                  num_bs=18,
@@ -303,6 +269,7 @@ class MultiHeadBS(layers.TimeDistributed):
         self.min_bs = min_bs
 
     def build(self, input_shape):
+        print(input_shape)
         B, S, _, T = input_shape
         assert self.num_bs * self.num_antennas_per_bs == S
         self.T = T
@@ -318,16 +285,17 @@ class MultiHeadBS(layers.TimeDistributed):
             tf.newaxis, tf.newaxis, :, :, tf.newaxis, tf.newaxis]
         super(MultiHeadBS, self).build((B, self.num_heads, S, 2, T))
 
-    def __call__(self, x, training=None, mask=None):
-        super(MultiHeadBS, self).build(x.shape)
-        x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
-        an_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4])  # (B, N, 72)
-        bs_mask = tf.reduce_any(self.reshape(an_mask), -1)  # (B, N, 18)
-        active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=-1)  # (B, N)
-        head_mask = tf.greater_equal(active_bs_num, self.min_bs)
+    def call(self, x, training=None, mask=None):
+        # x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
+        # an_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4])  # (B, N, 72)
+        # bs_mask = tf.reduce_any(self.reshape(an_mask), -1)  # (B, N, 18)
+        # active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=-1)  # (B, N)
+        # head_mask = tf.greater_equal(active_bs_num, self.min_bs)
 
-        x = super(MultiHeadBS, self).__call__(x, training=training, mask=mask)  # (B, N, 2)
-        x = layers.GlobalAveragePooling1D()(x, mask=head_mask)  # (B, 2)
+        # x = super(MultiHeadBS, self).__call__(x, training=training, mask=mask)  # (B, N, 2)
+        # x = layers.GlobalAveragePooling1D()(x, mask=head_mask)  # (B, 2)
+        x = tf.expand_dims(x, 1)
+        x = super(MultiHeadBS, self).call(x, training=training, mask=mask)
         return x
 
 
