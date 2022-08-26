@@ -272,32 +272,28 @@ class MultiHeadBS(layers.Layer):
         B, S, _, T = input_shape
         assert self.num_bs * self.num_antennas_per_bs == S
         self.T = T
-        self.reshape = layers.Reshape([self.num_heads, self.num_bs, self.num_antennas_per_bs])
+        self.reshape = layers.Reshape([-1, self.num_bs, self.num_antennas_per_bs])
 
         mask = np.zeros((self.num_heads, self.num_bs), dtype=np.float32)
         for i, bs_mask in enumerate(self.bs_masks):
             mask[i][bs_mask] = 1
 
-        self.mask = tf.identity(mask)[:, :, tf.newaxis]
-        self.mask = tf.tile(self.mask, [1, 1, 4])
-        self.mask = tf.reshape(self.mask, [self.num_heads, -1])[
-            tf.newaxis, tf.newaxis, :, :, tf.newaxis, tf.newaxis]
+        self.mask = tf.identity(mask)
         super(MultiHeadBS, self).build((B, self.num_heads, S, 2, T))
 
-    def call(self, x, training=None, mask=None):
-        x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
-        an_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4])  # (B, N, 72)
-        bs_mask = tf.reduce_any(self.reshape(an_mask), -1)  # (B, N, 18)
-        active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=-1)  # (B, N)
-        head_mask = tf.greater_equal(active_bs_num, self.min_bs)
-
-        x = super(MultiHeadBS, self).__call__(x, training=training, mask=mask)  # (B, N, 2)
-        x = layers.GlobalAveragePooling1D()(x, mask=head_mask)  # (B, 2)
-        x = super(MultiHeadBS, self).call(x, training=training, mask=mask)
-        return
+    def call(self, x):
+        mask = tf.tile(tf.expand_dims(self.mask, -1), [1, 1, 4])
+        mask = tf.reshape(mask, [self.num_heads, -1])[
+            tf.newaxis, :, :, tf.newaxis, tf.newaxis]
+        x = mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
+        return x
 
     def compute_mask(self, x, mask=None):
         raw_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[2, 3])
+        raw_bs_mask = tf.reduce_any(self.reshape(tf.expand_dims(raw_mask, 1)), axis=-1)
+        multi_head_bs_mask = tf.cast(tf.expand_dims(self.mask, 0), tf.int32) & tf.cast(raw_bs_mask, tf.int32)
+        multi_head_mask = tf.greater_equal(tf.reduce_sum(multi_head_bs_mask, -1), self.min_bs)
+        return multi_head_mask
 
 
 def build_model(input_shape,
@@ -365,7 +361,6 @@ tf.keras.utils.get_custom_objects().update(
 
 def Model_1(input_shape, output_shape):
     model = build_model(input_shape, output_shape, norm_size=120)
-    model = MultiHeadBS(model, bs_masks, 18, 4, 3)
     return model
 
 
