@@ -245,12 +245,12 @@ def SVD(x, units=128, weights=None):
     x = layers.Masking()(x)
     dense = layers.Dense(units, use_bias=False)
     x = dense(x)
-    # if weights is not None:
-    #     print('Load svd weights!')
-    #     if not isinstance(weights, list):
-    #         weights = [weights]
-    #     dense.set_weights(weights)
-    #     dense.trainable = False
+    if weights is not None:
+        print('Load svd weights!')
+        if not isinstance(weights, list):
+            weights = [weights]
+        dense.set_weights(weights)
+        dense.trainable = False
 
     return x
 
@@ -311,14 +311,13 @@ class MultiHeadBS(layers.TimeDistributed):
         for i, bs_mask in enumerate(self.bs_masks):
             mask[i][bs_mask] = 1
 
-        # shape = (1, N, 18, 1, 1, 1)
-        self.mask = tf.identity(mask)[tf.newaxis, :, :, tf.newaxis, tf.newaxis, tf.newaxis]
-        self.mask = tf.tile(self.mask, [1, 1, 1, self.num_antennas_per_bs, 1, 1])
-        self.mask = tf.reshape(self.mask, [-1, self.num_heads, ])
+        self.mask = tf.identity(mask)[:, :, tf.newaxis]
+        self.mask = tf.tile(self.mask, [1, 1, 4])
+        self.mask = tf.reshape(self.mask, [self.num_heads, -1])[:, :, tf.newaxis, tf.newaxis]
         super(MultiHeadBS, self).build((B, self.num_heads, S, 2, T))
 
     def call(self, x):
-        x = tf.reshape(x, [-1, self.num_bs, self.num_antennas_per_bs, 2, self.T])
+        x *= tf.expand_dims(self.mask, 0)
         x = self.mask * tf.expand_dims(x, 1)  # (B, N, 18, 4, 2, 256)
         bs_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4, 5])  # (B, N, 18)
         active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=2)  # (B, N)
