@@ -296,6 +296,11 @@ class MultiHeadBS(layers.Layer):
         return multi_head_mask
 
 
+class MyTimeDistributed(layers.TimeDistributed):
+    def compute_mask(self, input, mask=None):
+        return mask
+
+
 def build_model(input_shape,
                 output_shape=2,
                 embed_dim=256,
@@ -337,7 +342,6 @@ def build_model(input_shape,
 
     model = tf.keras.Model(x, y)
     model.save = types.MethodType(save, model)
-    model = tf.keras.Model(x, h)
     return model
 
 
@@ -372,4 +376,5 @@ if __name__ == '__main__':
 
     x = layers.Input((72, 2, 256))
     h = MultiHeadBS(bs_masks)(x)
+    y = MyTimeDistributed(model)(h)
     pass
