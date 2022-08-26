@@ -370,4 +370,5 @@ if __name__ == '__main__':
     # model.save('modelSubmit_1.h5')
     # model = tf.keras.models.load_model('modelSubmit_1.h5')
 
-    model.summary()
+    x = layers.Input((72, 2, 256))
+    h = MultiHeadBS(bs_masks)(x)
