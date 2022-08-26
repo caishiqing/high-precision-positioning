@@ -324,7 +324,7 @@ class MultiHeadBS(layers.TimeDistributed):
         active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=-1)  # (B, N)
         head_mask = tf.greater_equal(active_bs_num, self.min_bs)
 
-        x = super(MultiHeadBS, self).call(x, training=training, mask=mask)  # (B, N, 2)
+        x = super(MultiHeadBS, self).__call__(x, training=training, mask=mask)  # (B, N, 2)
         x = layers.GlobalAveragePooling1D()(x, mask=head_mask)  # (B, 2)
         return x
 
@@ -391,12 +391,15 @@ tf.keras.utils.get_custom_objects().update(
 
 
 def Model_1(input_shape, output_shape):
-    model, _ = build_model(input_shape, output_shape, norm_size=120)
+    model = build_model(input_shape, output_shape, norm_size=120)
+    model = MultiHeadBS(model, bs_masks, 18, 4, 3)
     return model
 
 
 if __name__ == '__main__':
     model = Model_1((72, 2, 256), 2)
-    model.load_weights('modelSubmit_1.h5')
-    model.save('modelSubmit_1.h5')
-    model = tf.keras.models.load_model('modelSubmit_1.h5')
+    # model.load_weights('modelSubmit_1.h5')
+    # model.save('modelSubmit_1.h5')
+    # model = tf.keras.models.load_model('modelSubmit_1.h5')
+
+    model.summary()
