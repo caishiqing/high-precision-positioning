@@ -310,34 +310,34 @@ def build_model(input_shape,
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    #h = SVD(x, embed_dim, svd_weight)
-    h = TimeReduction(x)
-    # h = AntennaEmbedding()(h)
-    # h = layers.Dense(embed_dim)(h)
-    # h = layers.LayerNormalization()(h)
-    # h = layers.Activation('relu')(h)
+    h = SVD(x, embed_dim, svd_weight)
+    # h = TimeReduction(x)
+    h = AntennaEmbedding()(h)
+    h = layers.Dense(embed_dim)(h)
+    h = layers.LayerNormalization()(h)
+    h = layers.Activation('relu')(h)
 
-    # for _ in range(num_attention_layers):
-    #     h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
-    #     h = layers.LayerNormalization()(h)
-    #     h = Residual(
-    #         tf.keras.Sequential(
-    #             layers=[
-    #                 layers.Dense(hidden_dim, activation='relu'),
-    #                 layers.Dense(embed_dim)
-    #             ]
-    #         ),
-    #         h
-    #     )
-    #     h = layers.LayerNormalization()(h)
+    for _ in range(num_attention_layers):
+        h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
+        h = layers.LayerNormalization()(h)
+        h = Residual(
+            tf.keras.Sequential(
+                layers=[
+                    layers.Dense(hidden_dim, activation='relu'),
+                    layers.Dense(embed_dim)
+                ]
+            ),
+            h
+        )
+        h = layers.LayerNormalization()(h)
 
-    # h = layers.Lambda(lambda x: x[:, 0, :])(h)
-    # y = layers.Dense(output_shape)(h)
-    # if norm_size is not None:
-    #     y = layers.Lambda(lambda x: x * norm_size)(y)
+    h = layers.Lambda(lambda x: x[:, 0, :])(h)
+    y = layers.Dense(output_shape)(h)
+    if norm_size is not None:
+        y = layers.Lambda(lambda x: x * norm_size)(y)
 
-    # model = tf.keras.Model(x, y)
-    # model.save = types.MethodType(save, model)
+    model = tf.keras.Model(x, y)
+    model.save = types.MethodType(save, model)
     model = tf.keras.Model(x, h)
     return model
 
