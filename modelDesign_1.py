@@ -306,6 +306,7 @@ class MultiHeadBS(layers.TimeDistributed):
         B, S, _, T = input_shape
         assert self.num_bs * self.num_antennas_per_bs == S
         self.T = T
+        self.reshape = layers.Reshape([self.num_heads, self.num_bs, self.num_antennas_per_bs])
 
         mask = np.zeros((self.num_heads, self.num_bs), dtype=np.float32)
         for i, bs_mask in enumerate(self.bs_masks):
@@ -316,13 +317,16 @@ class MultiHeadBS(layers.TimeDistributed):
         self.mask = tf.reshape(self.mask, [self.num_heads, -1])[tf.newaxis, tf.newaxis, :, :, tf.newaxis, tf.newaxis]
         super(MultiHeadBS, self).build((B, self.num_heads, S, 2, T))
 
-    def call(self, x):
+    def call(self, x, training=None, mask=None):
         x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
-        bs_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4, 5])  # (B, N, 18)
-        active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=2)  # (B, N)
+        an_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4])  # (B, N, 72)
+        bs_mask = tf.reduce_any(self.reshape(an_mask), -1)  # (B, N, 18)
+        active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=-1)  # (B, N)
         head_mask = tf.greater_equal(active_bs_num, self.min_bs)
 
-        x = tf.reshape(x, [-1, self.num_heads, self.num_bs * self.num_antennas_per_bs, 2, self.T])
+        x = super(MultiHeadBS, self).call(x, training=training, mask=mask)  # (B, N, 2)
+        x = layers.GlobalAveragePooling1D()(x, mask=head_mask)  # (B, 2)
+        return x
 
 
 def build_model(input_shape,
