@@ -294,7 +294,10 @@ class MultiHeadBS(layers.Layer):
         x = super(MultiHeadBS, self).__call__(x, training=training, mask=mask)  # (B, N, 2)
         x = layers.GlobalAveragePooling1D()(x, mask=head_mask)  # (B, 2)
         x = super(MultiHeadBS, self).call(x, training=training, mask=mask)
-        return x
+        return
+
+    def compute_mask(self, x, mask=None):
+        raw_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[2, 3])
 
 
 def build_model(input_shape,

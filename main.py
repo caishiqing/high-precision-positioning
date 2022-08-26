@@ -42,6 +42,11 @@ def train(data_file, label_file, save_path,
                             ))
 
     train_process.start()
+    import time
+    time.sleep(1)
+    print('Is process alive?', train_process.is_alive())
+    train_process._popen.returncode = None  # reset cached exit code
+    print('Is process alive?', train_process.is_alive())
     train_process.join()
 
     # train_engine((x_train, y_train),
