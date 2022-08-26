@@ -95,7 +95,7 @@ class TrainEngine:
     def __call__(self, train_data, valid_data,
                  save_path, pretrained_path=None, verbose=1):
 
-        stratagy = self._init_environ()
+        strategy = self._init_environ()
 
         x_train_shape = train_data[0].shape
         x_valid_shape = valid_data[0].shape

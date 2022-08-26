@@ -285,6 +285,9 @@ class MultiHeadBS(layers.TimeDistributed):
             tf.newaxis, tf.newaxis, :, :, tf.newaxis, tf.newaxis]
         super(MultiHeadBS, self).build((B, self.num_heads, S, 2, T))
 
+    def __call__(self, x, training=None, mask=None):
+        x = tf.expand_dims(x, 1)
+
     def call(self, x, training=None, mask=None):
         # x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
         # an_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4])  # (B, N, 72)
