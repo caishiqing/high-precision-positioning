@@ -269,8 +269,7 @@ class MultiHeadBS(layers.TimeDistributed):
         self.min_bs = min_bs
 
     def build(self, input_shape):
-        print(input_shape)
-        B, S, _, T = input_shape
+        B, _, S, _, T = input_shape
         assert self.num_bs * self.num_antennas_per_bs == S
         self.T = T
         self.reshape = layers.Reshape([self.num_heads, self.num_bs, self.num_antennas_per_bs])
@@ -287,17 +286,17 @@ class MultiHeadBS(layers.TimeDistributed):
 
     def __call__(self, x, training=None, mask=None):
         x = tf.expand_dims(x, 1)
+        return super(MultiHeadBS, self).__call__(x, training=training, mask=mask)
 
     def call(self, x, training=None, mask=None):
-        # x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
-        # an_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4])  # (B, N, 72)
-        # bs_mask = tf.reduce_any(self.reshape(an_mask), -1)  # (B, N, 18)
-        # active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=-1)  # (B, N)
-        # head_mask = tf.greater_equal(active_bs_num, self.min_bs)
+        x *= self.mask  # (B, N, 72, 2, 256)
+        an_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4])  # (B, N, 72)
+        bs_mask = tf.reduce_any(self.reshape(an_mask), -1)  # (B, N, 18)
+        active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=-1)  # (B, N)
+        head_mask = tf.greater_equal(active_bs_num, self.min_bs)
 
-        # x = super(MultiHeadBS, self).__call__(x, training=training, mask=mask)  # (B, N, 2)
-        # x = layers.GlobalAveragePooling1D()(x, mask=head_mask)  # (B, 2)
-        x = tf.expand_dims(x, 1)
+        x = super(MultiHeadBS, self).__call__(x, training=training, mask=mask)  # (B, N, 2)
+        x = layers.GlobalAveragePooling1D()(x, mask=head_mask)  # (B, 2)
         x = super(MultiHeadBS, self).call(x, training=training, mask=mask)
         return x
 
@@ -317,32 +316,33 @@ def build_model(input_shape,
     x = layers.Input(shape=input_shape)
     #h = SVD(x, embed_dim, svd_weight)
     h = TimeReduction(x)
-    h = AntennaEmbedding()(h)
-    h = layers.Dense(embed_dim)(h)
-    h = layers.LayerNormalization()(h)
-    h = layers.Activation('relu')(h)
+    # h = AntennaEmbedding()(h)
+    # h = layers.Dense(embed_dim)(h)
+    # h = layers.LayerNormalization()(h)
+    # h = layers.Activation('relu')(h)
 
-    for _ in range(num_attention_layers):
-        h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
-        h = layers.LayerNormalization()(h)
-        h = Residual(
-            tf.keras.Sequential(
-                layers=[
-                    layers.Dense(hidden_dim, activation='relu'),
-                    layers.Dense(embed_dim)
-                ]
-            ),
-            h
-        )
-        h = layers.LayerNormalization()(h)
+    # for _ in range(num_attention_layers):
+    #     h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
+    #     h = layers.LayerNormalization()(h)
+    #     h = Residual(
+    #         tf.keras.Sequential(
+    #             layers=[
+    #                 layers.Dense(hidden_dim, activation='relu'),
+    #                 layers.Dense(embed_dim)
+    #             ]
+    #         ),
+    #         h
+    #     )
+    #     h = layers.LayerNormalization()(h)
 
-    h = layers.Lambda(lambda x: x[:, 0, :])(h)
-    y = layers.Dense(output_shape)(h)
-    if norm_size is not None:
-        y = layers.Lambda(lambda x: x * norm_size)(y)
+    # h = layers.Lambda(lambda x: x[:, 0, :])(h)
+    # y = layers.Dense(output_shape)(h)
+    # if norm_size is not None:
+    #     y = layers.Lambda(lambda x: x * norm_size)(y)
 
-    model = tf.keras.Model(x, y)
-    model.save = types.MethodType(save, model)
+    # model = tf.keras.Model(x, y)
+    # model.save = types.MethodType(save, model)
+    model = tf.keras.Model(x, h)
     return model
 
 
