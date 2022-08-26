@@ -255,13 +255,13 @@ def SVD(x, units=128, weights=None):
     return x
 
 
-class MultiHeadBS(layers.TimeDistributed):
-    def __init__(self, layer, bs_masks,
+class MultiHeadBS(layers.Layer):
+    def __init__(self, bs_masks,
                  num_bs=18,
                  num_antennas_per_bs=4,
                  min_bs=3,
                  **kwargs):
-        super(MultiHeadBS, self).__init__(layer, **kwargs)
+        super(MultiHeadBS, self).__init__(**kwargs)
         self.bs_masks = bs_masks
         self.num_heads = len(bs_masks)
         self.num_bs = num_bs
@@ -269,7 +269,7 @@ class MultiHeadBS(layers.TimeDistributed):
         self.min_bs = min_bs
 
     def build(self, input_shape):
-        B, _, S, _, T = input_shape
+        B, S, _, T = input_shape
         assert self.num_bs * self.num_antennas_per_bs == S
         self.T = T
         self.reshape = layers.Reshape([self.num_heads, self.num_bs, self.num_antennas_per_bs])
@@ -284,12 +284,8 @@ class MultiHeadBS(layers.TimeDistributed):
             tf.newaxis, tf.newaxis, :, :, tf.newaxis, tf.newaxis]
         super(MultiHeadBS, self).build((B, self.num_heads, S, 2, T))
 
-    def __call__(self, x, training=None, mask=None):
-        x = tf.expand_dims(x, 1)
-        return super(MultiHeadBS, self).__call__(x, training=training, mask=mask)
-
     def call(self, x, training=None, mask=None):
-        x *= self.mask  # (B, N, 72, 2, 256)
+        x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
         an_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4])  # (B, N, 72)
         bs_mask = tf.reduce_any(self.reshape(an_mask), -1)  # (B, N, 18)
         active_bs_num = tf.reduce_sum(tf.cast(bs_mask, tf.int32), axis=-1)  # (B, N)
