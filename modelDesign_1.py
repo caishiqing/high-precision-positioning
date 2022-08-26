@@ -242,14 +242,15 @@ def TimeReduction(x):
 
 def SVD(x, units=128, weights=None):
     x = layers.TimeDistributed(layers.Flatten())(x)
+    x = layers.Masking()(x)
     dense = layers.Dense(units, use_bias=False)
     x = dense(x)
-    if weights is not None:
-        print('Load svd weights!')
-        if not isinstance(weights, list):
-            weights = [weights]
-        dense.set_weights(weights)
-        dense.trainable = False
+    # if weights is not None:
+    #     print('Load svd weights!')
+    #     if not isinstance(weights, list):
+    #         weights = [weights]
+    #     dense.set_weights(weights)
+    #     dense.trainable = False
 
     return x
 
