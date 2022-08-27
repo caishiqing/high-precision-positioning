@@ -91,6 +91,7 @@ class TrainEngine:
     def _compute_warmup_steps(self, num_samples):
         if self.steps_per_epoch is not None:
             total_steps = self.steps_per_epoch * self.epochs
+            self.drop_remainder = True
         else:
             total_steps = num_samples // self.batch_size
 
@@ -101,6 +102,7 @@ class TrainEngine:
     def __call__(self, train_data, valid_data, save_path,
                  pretrained_path=None, verbose=1):
 
+        strategy = self._init_environ()
         x_train_shape = train_data[0].shape
         x_valid_shape = valid_data[0].shape
 
@@ -122,29 +124,30 @@ class TrainEngine:
                                                         mode='min',
                                                         monitor='val_loss')
 
-        warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
-        optimizer = AdamWarmup(warmup_steps=warmup_steps,
-                               decay_steps=decay_steps,
-                               initial_learning_rate=self.learning_rate)
+        with strategy.scope():
+            warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
+            optimizer = AdamWarmup(warmup_steps=warmup_steps,
+                                   decay_steps=decay_steps,
+                                   initial_learning_rate=self.learning_rate)
 
-        model = build_model(x_train_shape[1:], 2,
-                            dropout=self.dropout,
-                            svd_weight=self.svd_weight)
-        if pretrained_path is not None:
-            print("Load pretrained weights from {}".format(pretrained_path))
-            model.load_weights(pretrained_path)
+            model = build_model(x_train_shape[1:], 2,
+                                dropout=self.dropout,
+                                svd_weight=self.svd_weight)
+            if pretrained_path is not None:
+                print("Load pretrained weights from {}".format(pretrained_path))
+                model.load_weights(pretrained_path)
 
-        model.compile(optimizer=optimizer,
-                      loss=clip_loss(tf.keras.losses.mae,
-                                     self.loss_epsilon))
-        model.summary()
-        model.fit(x=train_data,
-                  epochs=self.epochs,
-                  steps_per_epoch=self.steps_per_epoch,
-                  validation_data=valid_data,
-                  validation_batch_size=self.infer_batch_size,
-                  callbacks=[checkpoint],
-                  verbose=verbose)
+            model.compile(optimizer=optimizer,
+                          loss=clip_loss(tf.keras.losses.mae,
+                                         self.loss_epsilon))
+            model.summary()
+            model.fit(x=train_data,
+                      epochs=self.epochs,
+                      steps_per_epoch=self.steps_per_epoch,
+                      validation_data=valid_data,
+                      validation_batch_size=self.infer_batch_size,
+                      callbacks=[checkpoint],
+                      verbose=verbose)
 
         print(checkpoint.best)
         model.load_weights(save_path)

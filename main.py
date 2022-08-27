@@ -1,20 +1,24 @@
-from ast import Mod
 from sklearn.model_selection import train_test_split
 from train import TrainEngine, load_data
-from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.decomposition import TruncatedSVD
 from modelDesign_1 import bs_masks as masks1
 from modelDesign_2 import bs_masks as masks2
 from multiprocessing import Process
+import tensorflow as tf
 import numpy as np
 import fire
 
 
 def train(data_file, label_file, save_path,
           pretrained_path=None, mask_mode=1, **kwargs):
-    import tensorflow as tf
+
     tf.config.threading.set_inter_op_parallelism_threads(4)
     x, y = load_data(data_file, label_file)
-    svd_weight = TruncatedSVD(256).fit(x.reshape([len(x) * 72, -1])).components_.T
+    if pretrained_path is None:
+        svd_weight = TruncatedSVD(256).fit(x.reshape([len(x) * 72, -1])).components_.T
+    else:
+        svd_weight = None
+
     x = x[:len(y)]
     test_size = kwargs.pop('test_size', 0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
