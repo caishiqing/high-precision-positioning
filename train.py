@@ -93,7 +93,7 @@ class TrainEngine:
             total_steps = self.steps_per_epoch * self.epochs
             self.drop_remainder = True
         else:
-            total_steps = num_samples // self.batch_size
+            total_steps = num_samples // self.batch_size * self.epochs
 
         warmup_steps = int(total_steps * 0.1)
         decay_steps = total_steps - warmup_steps
