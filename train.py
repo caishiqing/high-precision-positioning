@@ -124,6 +124,7 @@ class TrainEngine:
                                                         monitor='val_loss')
 
         with strategy.scope():
+            train_data = strategy.experimental_distribute_dataset(train_data)
             warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
             optimizer = AdamWarmup(warmup_steps=warmup_steps,
                                    decay_steps=decay_steps,
