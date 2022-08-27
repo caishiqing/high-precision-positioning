@@ -83,7 +83,7 @@ def test(data_file,
     print('RMSE: ', round(rmse, 4))
 
     if result_file is not None:
-        np.save(result_file, pred)
+        np.save(result_file, pred.transpose((1, 0)))
 
 
 if __name__ == '__main__':
