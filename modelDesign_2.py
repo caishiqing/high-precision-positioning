@@ -5,15 +5,15 @@ import types
 
 
 bs_masks = [
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
     [0, 5, 12, 17],
-    [3, 7, 11, 15],
+    [0, 5, 12],
+    [0, 5, 17],
+    [5, 12, 17],
+    [0, 12, 17],
     [2, 6, 10, 14],
-    [1, 4, 8, 9, 13, 16],
-    [1, 3, 5, 6, 8, 10, 13, 15, 17],
-    [0, 2, 4, 7, 9, 11, 12, 14, 16],
-    [0, 2, 4, 6, 8, 10, 12, 14, 16],
-    [1, 3, 5, 7, 9, 11, 13, 15, 17]
+    [3, 7, 11, 15],
+    [1, 4, 13, 16],
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
 ]
 
 
@@ -220,18 +220,10 @@ def TimeReduction(x):
     return x
 
 
-def SVD(x, units=128, weights=None):
+def SVD(x, units=256):
     x = layers.TimeDistributed(layers.Flatten())(x)
     x = layers.Masking()(x)
-    dense = layers.Dense(units, use_bias=False)
-    x = dense(x)
-    if weights is not None:
-        print('Load svd weights!')
-        if not isinstance(weights, list):
-            weights = [weights]
-        dense.set_weights(weights)
-        dense.trainable = False
-
+    x = layers.Dense(units, use_bias=False)(x)
     return x
 
 
@@ -299,14 +291,12 @@ def build_model(input_shape,
                 num_heads=8,
                 num_attention_layers=6,
                 dropout=0.0,
-                svd_weight=None,
                 norm_size=None):
 
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    h = SVD(x, embed_dim, svd_weight)
-    # h = TimeReduction(x)
+    h = SVD(x, embed_dim)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)

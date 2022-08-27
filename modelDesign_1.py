@@ -220,18 +220,10 @@ def TimeReduction(x):
     return x
 
 
-def SVD(x, units=128, weights=None):
+def SVD(x, units=256):
     x = layers.TimeDistributed(layers.Flatten())(x)
     x = layers.Masking()(x)
-    dense = layers.Dense(units, use_bias=False)
-    x = dense(x)
-    if weights is not None:
-        print('Load svd weights!')
-        if not isinstance(weights, list):
-            weights = [weights]
-        dense.set_weights(weights)
-        dense.trainable = False
-
+    x = layers.Dense(units, use_bias=False)(x)
     return x
 
 
@@ -299,14 +291,12 @@ def build_model(input_shape,
                 num_heads=8,
                 num_attention_layers=6,
                 dropout=0.0,
-                svd_weight=None,
                 norm_size=None):
 
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    h = SVD(x, embed_dim, svd_weight)
-    # h = TimeReduction(x)
+    h = SVD(x, embed_dim)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)

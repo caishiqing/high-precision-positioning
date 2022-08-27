@@ -130,13 +130,16 @@ class TrainEngine:
                                    decay_steps=decay_steps,
                                    initial_learning_rate=self.learning_rate)
 
-            model = build_model(x_train_shape[1:], 2,
-                                dropout=self.dropout,
-                                svd_weight=self.svd_weight)
+            model = build_model(x_train_shape[1:], 2, dropout=self.dropout)
+            svd_layer = model.layers[3]
             if pretrained_path is not None:
                 print("Load pretrained weights from {}".format(pretrained_path))
                 model.load_weights(pretrained_path)
+            if self.svd_weight is not None:
+                print('Load svd weight!')
+                svd_layer.set_weights([self.svd_weight])
 
+            svd_layer.trainable = False
             model.compile(optimizer=optimizer,
                           loss=clip_loss(tf.keras.losses.mae,
                                          self.loss_epsilon))

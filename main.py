@@ -10,11 +10,12 @@ import fire
 
 
 def train(data_file, label_file, save_path,
-          pretrained_path=None, mask_mode=1, **kwargs):
+          pretrained_path=None, mask_mode=1,
+          learn_svd=False, **kwargs):
 
     tf.config.threading.set_inter_op_parallelism_threads(4)
     x, y = load_data(data_file, label_file)
-    if pretrained_path is None:
+    if learn_svd is None:
         svd_weight = TruncatedSVD(256).fit(x.reshape([len(x) * 72, -1])).components_.T
     else:
         svd_weight = None
@@ -69,7 +70,7 @@ def test(data_file, label_file, model_path, result_file=None, mode=1):
     x = x[:len(y)]
     model = Model(x.shape[1:], 2, weights_path=model_path)
     pred = model.predict(x)[:len(y)]
-    rmse = np.mean(np.math.sqrt(np.sum((y * 120 - pred) ** 2, axis=-1)))
+    rmse = np.mean(np.sqrt(np.sum((y * 120 - pred) ** 2, axis=-1)))
     print('RMSE: ', round(rmse, 4))
 
     if result_file is not None:
