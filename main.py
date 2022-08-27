@@ -27,13 +27,12 @@ def train(data_file,
         svd_weight = None
 
     x = x[:len(y)]
-    if repeat_data_times > 1:
-        x = np.vstack([x] * repeat_data_times)
-        y = np.vstack([y] * repeat_data_times)
-
     test_size = kwargs.pop('test_size', 0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
     del x, y
+    if repeat_data_times > 1:
+        x_train = np.vstack([x_train] * repeat_data_times)
+        y_train = np.vstack([y_train] * repeat_data_times)
 
     if mask_mode == 1:
         bs_masks = masks1
