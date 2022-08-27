@@ -28,8 +28,8 @@ def train(data_file,
 
     x = x[:len(y)]
     if repeat_data_times > 1:
-        x = np.stack([x] * repeat_data_times)
-        y = np.stack([y] * repeat_data_times)
+        x = np.vstack([x] * repeat_data_times)
+        y = np.vstack([y] * repeat_data_times)
 
     test_size = kwargs.pop('test_size', 0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
