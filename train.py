@@ -55,7 +55,6 @@ class TrainEngine:
                  batch_size,
                  infer_batch_size,
                  epochs=100,
-                 steps_per_epoch=None,
                  learning_rate=1e-3,
                  dropout=0.0,
                  masks=None,
@@ -65,7 +64,6 @@ class TrainEngine:
         self.batch_size = int(batch_size)
         self.infer_batch_size = int(infer_batch_size)
         self.epochs = int(epochs)
-        self.steps_per_epoch = steps_per_epoch
         self.learning_rate = float(learning_rate)
         self.dropout = float(dropout)
         self.drop_remainder = False
@@ -89,12 +87,7 @@ class TrainEngine:
         return strategy
 
     def _compute_warmup_steps(self, num_samples):
-        if self.steps_per_epoch is not None:
-            total_steps = self.steps_per_epoch * self.epochs
-            self.drop_remainder = True
-        else:
-            total_steps = num_samples // self.batch_size * self.epochs
-
+        total_steps = num_samples // self.batch_size * self.epochs
         warmup_steps = int(total_steps * 0.1)
         decay_steps = total_steps - warmup_steps
         return warmup_steps, decay_steps
@@ -108,11 +101,8 @@ class TrainEngine:
 
         autotune = tf.data.experimental.AUTOTUNE
         train_data = tf.data.Dataset.from_tensor_slices(
-            train_data).map(self.augment, autotune)
-        if self.steps_per_epoch is not None:
-            train_data = train_data.shuffle(1000)
-        train_data = train_data.batch(self.batch_size, self.drop_remainder)
-
+            train_data).map(self.augment, autotune).batch(self.batch_size,
+                                                          self.drop_remainder)
         valid_data = tf.data.Dataset.from_tensor_slices(
             valid_data).map(self.augment, autotune).batch(x_valid_shape[0])
         valid_data = list(valid_data)[0]
@@ -145,7 +135,6 @@ class TrainEngine:
             model.summary()
             model.fit(x=train_data,
                       epochs=self.epochs,
-                      steps_per_epoch=self.steps_per_epoch,
                       validation_data=valid_data,
                       validation_batch_size=self.infer_batch_size,
                       callbacks=[checkpoint],

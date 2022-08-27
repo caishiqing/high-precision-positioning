@@ -15,6 +15,7 @@ def train(data_file,
           pretrained_path=None,
           mask_mode=1,
           learn_svd=False,
+          repeat_data_times=1,
           **kwargs):
 
     tf.config.threading.set_inter_op_parallelism_threads(4)
@@ -26,6 +27,10 @@ def train(data_file,
         svd_weight = None
 
     x = x[:len(y)]
+    if repeat_data_times > 1:
+        x = np.stack([x] * repeat_data_times)
+        y = np.stack([y] * repeat_data_times)
+
     test_size = kwargs.pop('test_size', 0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
     del x, y
@@ -39,7 +44,6 @@ def train(data_file,
     train_engine = TrainEngine(batch_size=kwargs.pop('batch_size', 128),
                                infer_batch_size=kwargs.pop('infer_batch_size', 128),
                                epochs=kwargs.pop('epochs', 100),
-                               steps_per_epoch=kwargs.pop('steps_per_epoch', None),
                                learning_rate=kwargs.pop('learning_rate', 1e-3),
                                dropout=kwargs.pop('dropout', 0.0),
                                masks=bs_masks,
