@@ -19,6 +19,7 @@ def train(data_file,
 
     tf.config.threading.set_inter_op_parallelism_threads(4)
     x, y = load_data(data_file, label_file)
+    y /= 120
     if learn_svd:
         svd_weight = TruncatedSVD(256).fit(x.reshape([len(x) * 72, -1])).components_.T
     else:
@@ -76,10 +77,9 @@ def test(data_file,
         from modelDesign_2 import Model_2 as Model
 
     x, y = load_data(data_file, label_file)
-    x = x[:len(y)]
     model = Model(x.shape[1:], 2, weights_path=model_path)
     pred = model.predict(x)
-    rmse = np.mean(np.sqrt(np.sum((y * 120 - pred[:len(y)]) ** 2, axis=-1)))
+    rmse = np.mean(np.sqrt(np.sum((y - pred[:len(y)]) ** 2, axis=-1)))
     print('RMSE: ', round(rmse, 4))
 
     if result_file is not None:

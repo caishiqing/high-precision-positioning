@@ -9,7 +9,7 @@ def load_data(x_file, y_file):
     x = CIR.transpose((2, 3, 0, 1))
     POS = np.load(y_file).astype(np.float32)
     y = POS.transpose((1, 0))
-    return x, y / 120
+    return x, y
 
 
 class MaskBS(object):
