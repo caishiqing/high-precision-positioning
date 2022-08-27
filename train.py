@@ -111,8 +111,7 @@ class TrainEngine:
             train_data).map(self.augment, autotune)
         if self.steps_per_epoch is not None:
             train_data = train_data.shuffle(1000)
-        else:
-            train_data = train_data.batch(self.batch_size, self.drop_remainder)
+        train_data = train_data.batch(self.batch_size, self.drop_remainder)
 
         valid_data = tf.data.Dataset.from_tensor_slices(
             valid_data).map(self.augment, autotune).batch(x_valid_shape[0])
