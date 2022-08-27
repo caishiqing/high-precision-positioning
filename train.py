@@ -95,7 +95,7 @@ class TrainEngine:
             total_steps = num_samples // self.batch_size
 
         warmup_steps = int(total_steps * 0.1)
-        decay_steps = total_steps-decay_steps
+        decay_steps = total_steps - warmup_steps
         return warmup_steps, decay_steps
 
     def __call__(self, train_data, valid_data, save_path,
