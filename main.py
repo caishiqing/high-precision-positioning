@@ -15,7 +15,7 @@ def train(data_file, label_file, save_path,
 
     tf.config.threading.set_inter_op_parallelism_threads(4)
     x, y = load_data(data_file, label_file)
-    if learn_svd is None:
+    if learn_svd:
         svd_weight = TruncatedSVD(256).fit(x.reshape([len(x) * 72, -1])).components_.T
     else:
         svd_weight = None
