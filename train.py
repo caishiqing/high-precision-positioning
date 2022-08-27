@@ -100,7 +100,6 @@ class TrainEngine:
 
     def __call__(self, train_data, valid_data, save_path,
                  pretrained_path=None, verbose=1):
-        strategy = self._init_environ()
 
         x_train_shape = train_data[0].shape
         x_valid_shape = valid_data[0].shape
@@ -112,7 +111,6 @@ class TrainEngine:
             train_data = train_data.shuffle(1000)
         else:
             train_data = train_data.batch(self.batch_size, self.drop_remainder)
-        train_data = strategy.experimental_distribute_dataset(train_data)
 
         valid_data = tf.data.Dataset.from_tensor_slices(
             valid_data).map(self.augment, autotune).batch(x_valid_shape[0])
@@ -124,30 +122,29 @@ class TrainEngine:
                                                         mode='min',
                                                         monitor='val_loss')
 
-        with strategy.scope():
-            warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
-            optimizer = AdamWarmup(warmup_steps=warmup_steps,
-                                   decay_steps=decay_steps,
-                                   initial_learning_rate=self.learning_rate)
+        warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
+        optimizer = AdamWarmup(warmup_steps=warmup_steps,
+                               decay_steps=decay_steps,
+                               initial_learning_rate=self.learning_rate)
 
-            model = build_model(x_train_shape[1:], 2,
-                                dropout=self.dropout,
-                                svd_weight=self.svd_weight)
-            if pretrained_path is not None:
-                print("Load pretrained weights from {}".format(pretrained_path))
-                model.load_weights(pretrained_path)
+        model = build_model(x_train_shape[1:], 2,
+                            dropout=self.dropout,
+                            svd_weight=self.svd_weight)
+        if pretrained_path is not None:
+            print("Load pretrained weights from {}".format(pretrained_path))
+            model.load_weights(pretrained_path)
 
-            model.compile(optimizer=optimizer,
-                          loss=clip_loss(tf.keras.losses.mae,
-                                         self.loss_epsilon))
-            model.summary()
-            model.fit(x=train_data,
-                      epochs=self.epochs,
-                      steps_per_epoch=self.steps_per_epoch,
-                      validation_data=valid_data,
-                      validation_batch_size=self.infer_batch_size,
-                      callbacks=[checkpoint],
-                      verbose=verbose)
+        model.compile(optimizer=optimizer,
+                      loss=clip_loss(tf.keras.losses.mae,
+                                     self.loss_epsilon))
+        model.summary()
+        model.fit(x=train_data,
+                  epochs=self.epochs,
+                  steps_per_epoch=self.steps_per_epoch,
+                  validation_data=valid_data,
+                  validation_batch_size=self.infer_batch_size,
+                  callbacks=[checkpoint],
+                  verbose=verbose)
 
         print(checkpoint.best)
         model.load_weights(save_path)
