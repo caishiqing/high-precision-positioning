@@ -9,9 +9,13 @@ import numpy as np
 import fire
 
 
-def train(data_file, label_file, save_path,
-          pretrained_path=None, mask_mode=1,
-          learn_svd=False, **kwargs):
+def train(data_file,
+          label_file,
+          save_path,
+          pretrained_path=None,
+          mask_mode=1,
+          learn_svd=False,
+          **kwargs):
 
     tf.config.threading.set_inter_op_parallelism_threads(4)
     x, y = load_data(data_file, label_file)
@@ -60,7 +64,12 @@ def train(data_file, label_file, save_path,
                  kwargs.pop('verbose', 1))
 
 
-def test(data_file, label_file, model_path, result_file=None, mode=1):
+def test(data_file,
+         label_file,
+         model_path,
+         result_file=None,
+         mode=1):
+
     if mode == 1:
         from modelDesign_1 import Model_1 as Model
     elif mode == 2:
