@@ -1,5 +1,6 @@
 from tensorflow.keras import layers
 import tensorflow as tf
+import numpy as np
 import types
 
 
@@ -159,26 +160,6 @@ class SelfAttention(MultiHeadAttention):
         return mask
 
 
-class AntennaMasking(layers.Layer):
-    def __init__(self, **kwargs):
-        super(AntennaMasking, self).__init__(**kwargs)
-        self.flatten = layers.TimeDistributed(layers.Flatten())
-        self.supports_masking = True
-
-    def call(self, inputs):
-        x, h = inputs
-        mask = self.compute_mask(inputs)
-        h *= tf.cast(mask[:, :, tf.newaxis], h.dtype)
-        return h
-
-    def compute_output_shape(self, input_shape):
-        return input_shape[1]
-
-    def compute_mask(self, inputs, mask=None):
-        x = self.flatten(inputs[0])
-        return tf.reduce_any(tf.not_equal(x, 0), axis=-1)
-
-
 class AntennaEmbedding(layers.Layer):
     def __init__(self, **kwargs):
         super(AntennaEmbedding, self).__init__(**kwargs)
@@ -225,6 +206,7 @@ def Residual(fn, res, dropout=0.0):
 
 
 def TimeReduction(x):
+    x = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
     xs = []
     for xi, filters in zip(tf.split(x, 4, axis=-2), [128, 48, 24, 8]):
         xi = layers.TimeDistributed(layers.ZeroPadding1D(2))(xi)
@@ -238,39 +220,62 @@ def TimeReduction(x):
     return x
 
 
-class SVD(layers.Layer):
-    def __init__(self, units=128, **kwargs):
-        super(SVD, self).__init__(**kwargs)
-        self.units = units
-        self.supports_masking = True
-        self.flatten = layers.TimeDistributed(layers.Flatten())
+def SVD(x, units=128, weights=None):
+    x = layers.TimeDistributed(layers.Flatten())(x)
+    x = layers.Masking()(x)
+    dense = layers.Dense(units, use_bias=False)
+    x = dense(x)
+    if weights is not None:
+        print('Load svd weights!')
+        if not isinstance(weights, list):
+            weights = [weights]
+        dense.set_weights(weights)
+        dense.trainable = False
+
+    return x
+
+
+class MultiHeadBS(layers.Layer):
+    def __init__(self, bs_masks,
+                 num_bs=18,
+                 num_antennas_per_bs=4,
+                 **kwargs):
+        super(MultiHeadBS, self).__init__(**kwargs)
+        self.bs_masks = bs_masks
+        self.num_heads = len(bs_masks)
+        self.num_bs = num_bs
+        self.num_antennas_per_bs = num_antennas_per_bs
 
     def build(self, input_shape):
-        _, _, num_channels, length = input_shape
-        self.transform_ = self.add_weight(name='transform_',
-                                          shape=(num_channels*length, self.units),
-                                          dtype=tf.float32,
-                                          initializer='glorot_uniform')
-        self.built = True
+        B, S, _, T = input_shape
+        assert self.num_bs * self.num_antennas_per_bs == S
+        self.T = T
 
-    def call(self, inputs):
-        x = self.flatten(inputs)
-        x = tf.matmul(x, self.transform_)
+        mask = np.zeros((self.num_heads, self.num_bs), dtype=np.float32)
+        for i, bs_mask in enumerate(self.bs_masks):
+            mask[i][bs_mask] = 1
+
+        self.mask = tf.tile(tf.expand_dims(tf.identity(mask), -1), [1, 1, 4])[
+            tf.newaxis, :, :, tf.newaxis, tf.newaxis]
+        self.build = True
+
+    def call(self, x):
+        x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
         return x
 
-    def compute_mask(self, inputs, mask=None):
-        x = self.flatten(inputs)
-        mask = tf.reduce_any(tf.not_equal(x, 0), axis=-1)
-        return mask
 
-    def compute_output_shape(self, input_shape):
-        b, s, _, _ = input_shape
-        return b, s, self.units
+class MyTimeDistributed(layers.TimeDistributed):
+    def __init__(self, layer, num_bs=18, min_bs=3, **kwargs):
+        super(MyTimeDistributed, self).__init__(layer, **kwargs)
+        self.num_bs = num_bs
+        self.min_bs = min_bs
 
-    def get_config(self):
-        config = super(SVD, self).get_config()
-        config['units'] = self.units
-        return config
+    def compute_mask(self, x, mask=None):
+        an_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4])
+        an_mask = tf.stack(tf.split(an_mask, self.num_bs, -1), 2)
+        bs_mask = tf.reduce_any(an_mask, -1)
+        head_mask = tf.greater_equal(tf.reduce_sum(tf.cast(bs_mask, tf.int32), -1), self.min_bs)
+        return head_mask
 
 
 def build_model(input_shape,
@@ -286,12 +291,8 @@ def build_model(input_shape,
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    svd = SVD(embed_dim)
-    if svd_weight is not None:
-        svd.set_weights([svd_weight])
-        svd.trainable = False
-
-    h = svd(x)
+    h = SVD(x, embed_dim, svd_weight)
+    # h = TimeReduction(x)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
@@ -333,14 +334,22 @@ tf.keras.utils.get_custom_objects().update(
     {
         'MultiHeadAttention': MultiHeadAttention,
         'SelfAttention': SelfAttention,
-        'AntennaMasking': AntennaMasking,
-        'AntennaEmbedding': AntennaEmbedding
+        'AntennaEmbedding': AntennaEmbedding,
+        'MultiHeadBS': MultiHeadBS,
+        'MyTimeDistributed': MyTimeDistributed
     }
 )
 
 
 def Model_2(input_shape, output_shape):
-    model, _ = build_model(input_shape, output_shape, norm_size=120)
+    model = build_model(input_shape, output_shape, norm_size=120)
+    model = tf.keras.Sequential(
+        layers=[
+            MultiHeadBS(bs_masks, 18, 4),
+            MyTimeDistributed(model, 18, 3),
+            layers.GlobalAveragePooling1D()
+        ]
+    )
     return model
 
 

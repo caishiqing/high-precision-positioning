@@ -160,26 +160,6 @@ class SelfAttention(MultiHeadAttention):
         return mask
 
 
-class AntennaMasking(layers.Layer):
-    def __init__(self, **kwargs):
-        super(AntennaMasking, self).__init__(**kwargs)
-        self.flatten = layers.TimeDistributed(layers.Flatten())
-        self.supports_masking = True
-
-    def call(self, inputs):
-        x, h = inputs
-        mask = self.compute_mask(inputs)
-        h *= tf.cast(mask[:, :, tf.newaxis], h.dtype)
-        return h
-
-    def compute_output_shape(self, input_shape):
-        return input_shape[1]
-
-    def compute_mask(self, inputs, mask=None):
-        x = self.flatten(inputs[0])
-        return tf.reduce_any(tf.not_equal(x, 0), axis=-1)
-
-
 class AntennaEmbedding(layers.Layer):
     def __init__(self, **kwargs):
         super(AntennaEmbedding, self).__init__(**kwargs)
@@ -259,46 +239,43 @@ class MultiHeadBS(layers.Layer):
     def __init__(self, bs_masks,
                  num_bs=18,
                  num_antennas_per_bs=4,
-                 min_bs=3,
                  **kwargs):
         super(MultiHeadBS, self).__init__(**kwargs)
         self.bs_masks = bs_masks
         self.num_heads = len(bs_masks)
         self.num_bs = num_bs
         self.num_antennas_per_bs = num_antennas_per_bs
-        self.min_bs = min_bs
 
     def build(self, input_shape):
         B, S, _, T = input_shape
         assert self.num_bs * self.num_antennas_per_bs == S
         self.T = T
-        self.reshape = layers.Reshape([-1, self.num_bs, self.num_antennas_per_bs])
 
         mask = np.zeros((self.num_heads, self.num_bs), dtype=np.float32)
         for i, bs_mask in enumerate(self.bs_masks):
             mask[i][bs_mask] = 1
 
-        self.mask = tf.identity(mask)
-        super(MultiHeadBS, self).build((B, self.num_heads, S, 2, T))
+        self.mask = tf.tile(tf.expand_dims(tf.identity(mask), -1), [1, 1, 4])[
+            tf.newaxis, :, :, tf.newaxis, tf.newaxis]
+        self.build = True
 
     def call(self, x):
-        mask = tf.tile(tf.expand_dims(self.mask, -1), [1, 1, 4])
-        mask = tf.reshape(mask, [self.num_heads, -1])[
-            tf.newaxis, :, :, tf.newaxis, tf.newaxis]
-        x = mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
+        x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
         return x
-
-    def compute_mask(self, x, mask=None):
-        raw_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[2, 3])
-        raw_bs_mask = tf.reduce_any(self.reshape(tf.expand_dims(raw_mask, 1)), axis=-1)
-        multi_head_bs_mask = tf.cast(tf.expand_dims(self.mask, 0), tf.int32) & tf.cast(raw_bs_mask, tf.int32)
-        multi_head_mask = tf.greater_equal(tf.reduce_sum(multi_head_bs_mask, -1), self.min_bs)
-        return multi_head_mask
 
 
 class MyTimeDistributed(layers.TimeDistributed):
-    def compute_mask(self, input, mask=None):
-        return mask
+    def __init__(self, layer, num_bs=18, min_bs=3, **kwargs):
+        super(MyTimeDistributed, self).__init__(layer, **kwargs)
+        self.num_bs = num_bs
+        self.min_bs = min_bs
+
+    def compute_mask(self, x, mask=None):
+        an_mask = tf.reduce_any(tf.not_equal(x, 0), axis=[3, 4])
+        an_mask = tf.stack(tf.split(an_mask, self.num_bs, -1), 2)
+        bs_mask = tf.reduce_any(an_mask, -1)
+        head_mask = tf.greater_equal(tf.reduce_sum(tf.cast(bs_mask, tf.int32), -1), self.min_bs)
+        return head_mask
 
 
 def build_model(input_shape,
@@ -357,24 +334,27 @@ tf.keras.utils.get_custom_objects().update(
     {
         'MultiHeadAttention': MultiHeadAttention,
         'SelfAttention': SelfAttention,
-        'AntennaMasking': AntennaMasking,
-        'AntennaEmbedding': AntennaEmbedding
+        'AntennaEmbedding': AntennaEmbedding,
+        'MultiHeadBS': MultiHeadBS,
+        'MyTimeDistributed': MyTimeDistributed
     }
 )
 
 
 def Model_1(input_shape, output_shape):
     model = build_model(input_shape, output_shape, norm_size=120)
+    model = tf.keras.Sequential(
+        layers=[
+            MultiHeadBS(bs_masks, 18, 4),
+            MyTimeDistributed(model, 18, 3),
+            layers.GlobalAveragePooling1D()
+        ]
+    )
     return model
 
 
 if __name__ == '__main__':
     model = Model_1((72, 2, 256), 2)
-    # model.load_weights('modelSubmit_1.h5')
-    # model.save('modelSubmit_1.h5')
-    # model = tf.keras.models.load_model('modelSubmit_1.h5')
-
-    x = layers.Input((72, 2, 256))
-    h = MultiHeadBS(bs_masks)(x)
-    y = MyTimeDistributed(model)(h)
-    pass
+    model.load_weights('modelSubmit_1.h5')
+    model.save('modelSubmit_1.h5')
+    model = tf.keras.models.load_model('modelSubmit_1.h5')
