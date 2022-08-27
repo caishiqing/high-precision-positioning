@@ -28,10 +28,12 @@ def train(data_file, label_file, save_path,
     train_engine = TrainEngine(batch_size=kwargs.pop('batch_size', 128),
                                infer_batch_size=kwargs.pop('infer_batch_size', 128),
                                epochs=kwargs.pop('epochs', 100),
+                               steps_per_epoch=kwargs.pop('steps_per_epoch', None),
                                learning_rate=kwargs.pop('learning_rate', 1e-3),
                                dropout=kwargs.pop('dropout', 0.0),
                                masks=bs_masks,
-                               svd_weight=svd_weight)
+                               svd_weight=svd_weight,
+                               loss_epsilon=kwargs.pop('loss_epsilon', 0.0))
 
     # train_process = Process(target=train_engine,
     #                         args=(
@@ -52,16 +54,19 @@ def train(data_file, label_file, save_path,
                  kwargs.pop('verbose', 1))
 
 
-def test(data_file, label_file, model_path):
+def test(data_file, label_file, model_path, result_file=None):
     from modelDesign_1 import build_model
 
     x, y = load_data(data_file, label_file)
     x = x[:len(y)]
-    model = build_model(input_shape=x.shape[1:])
+    model = build_model(x.shape[1:], 2, norm_size=120)
     model.load_weights(model_path)
     pred = model.predict(x)
-    rmse = np.mean(np.math.sqrt(np.sum((y - pred) ** 2, axis=-1)))
-    return rmse
+    rmse = np.mean(np.math.sqrt(np.sum((y * 120 - pred) ** 2, axis=-1)))
+    print('RMSE: ', round(rmse, 4))
+
+    if result_file is not None:
+        np.save(result_file, pred)
 
 
 if __name__ == '__main__':

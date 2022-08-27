@@ -255,13 +255,21 @@ class MultiHeadBS(layers.Layer):
         for i, bs_mask in enumerate(self.bs_masks):
             mask[i][bs_mask] = 1
 
-        self.mask = tf.tile(tf.expand_dims(tf.identity(mask), -1), [1, 1, 4])[
+        mask = tf.tile(tf.expand_dims(tf.identity(mask), -1), [1, 1, 4])
+        self.mask = tf.reshape(mask, [self.num_heads, -1])[
             tf.newaxis, :, :, tf.newaxis, tf.newaxis]
         self.build = True
 
     def call(self, x):
         x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
         return x
+
+    def get_config(self):
+        config = super().get_config()
+        config['bs_masks'] = self.bs_masks
+        config['num_bs'] = self.num_bs
+        config['num_antennas_per_bs'] = self.num_antennas_per_bs
+        return config
 
 
 class MyTimeDistributed(layers.TimeDistributed):
@@ -276,6 +284,12 @@ class MyTimeDistributed(layers.TimeDistributed):
         bs_mask = tf.reduce_any(an_mask, -1)
         head_mask = tf.greater_equal(tf.reduce_sum(tf.cast(bs_mask, tf.int32), -1), self.min_bs)
         return head_mask
+
+    def get_config(self):
+        config = super().get_config()
+        config['num_bs'] = self.num_bs
+        config['min_bs'] = self.min_bs
+        return config
 
 
 def build_model(input_shape,
@@ -341,20 +355,20 @@ tf.keras.utils.get_custom_objects().update(
 )
 
 
-def Model_1(input_shape, output_shape):
-    model = build_model(input_shape, output_shape, norm_size=120)
-    model = tf.keras.Sequential(
-        layers=[
-            MultiHeadBS(bs_masks, 18, 4),
-            MyTimeDistributed(model, 18, 3),
-            layers.GlobalAveragePooling1D()
-        ]
-    )
+def Model_1(input_shape, output_shape, weights_path=None):
+    model_layer = build_model(input_shape, output_shape, norm_size=120)
+    if weights_path is not None:
+        model_layer.load_weights(weights_path)
+
+    model = tf.keras.Sequential()
+    model.add(layers.Input(input_shape))
+    model.add(MultiHeadBS(bs_masks, 18, 4)),
+    model.add(MyTimeDistributed(model_layer, 18, 3))
+    model.add(layers.GlobalAveragePooling1D())
     return model
 
 
 if __name__ == '__main__':
-    model = Model_1((72, 2, 256), 2)
-    model.load_weights('modelSubmit_1.h5')
+    model = Model_1((72, 2, 256), 2, 'modelSubmit_1.h5')
     model.save('modelSubmit_1.h5')
     model = tf.keras.models.load_model('modelSubmit_1.h5')
