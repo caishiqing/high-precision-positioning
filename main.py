@@ -78,8 +78,8 @@ def test(data_file,
     x, y = load_data(data_file, label_file)
     x = x[:len(y)]
     model = Model(x.shape[1:], 2, weights_path=model_path)
-    pred = model.predict(x)[:len(y)]
-    rmse = np.mean(np.sqrt(np.sum((y * 120 - pred) ** 2, axis=-1)))
+    pred = model.predict(x)
+    rmse = np.mean(np.sqrt(np.sum((y * 120 - pred[:len(y)]) ** 2, axis=-1)))
     print('RMSE: ', round(rmse, 4))
 
     if result_file is not None:
