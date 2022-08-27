@@ -1,3 +1,4 @@
+from ast import Mod
 from sklearn.model_selection import train_test_split
 from train import TrainEngine, load_data
 from sklearn.decomposition import PCA, TruncatedSVD
@@ -54,14 +55,16 @@ def train(data_file, label_file, save_path,
                  kwargs.pop('verbose', 1))
 
 
-def test(data_file, label_file, model_path, result_file=None):
-    from modelDesign_1 import build_model
+def test(data_file, label_file, model_path, result_file=None, mode=1):
+    if mode == 1:
+        from modelDesign_1 import Model_1 as Model
+    elif mode == 2:
+        from modelDesign_2 import Model_2 as Model
 
     x, y = load_data(data_file, label_file)
     x = x[:len(y)]
-    model = build_model(x.shape[1:], 2, norm_size=120)
-    model.load_weights(model_path)
-    pred = model.predict(x)
+    model = Model(x.shape[1:], 2, weights_path=model_path)
+    pred = model.predict(x)[:len(y)]
     rmse = np.mean(np.math.sqrt(np.sum((y * 120 - pred) ** 2, axis=-1)))
     print('RMSE: ', round(rmse, 4))
 
