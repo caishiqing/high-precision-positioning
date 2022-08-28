@@ -100,7 +100,7 @@ class TrainEngine:
         self.augment = MaskBS(18, 4, bs_masks)
         self.svd_weight = svd_weight
         self.loss_epsilon = float(loss_epsilon)
-        self.max_semi_weight = float(max_semi_weight)
+        self.max_semi_weight = max_semi_weight
 
     def _init_environ(self):
         # Build distribute strategy on gpu or tpu
