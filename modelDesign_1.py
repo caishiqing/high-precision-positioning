@@ -223,7 +223,7 @@ def TimeReduction(x):
 def SVD(x, units=256):
     x = layers.TimeDistributed(layers.Flatten())(x)
     x = layers.Masking()(x)
-    x = layers.Dense(units, use_bias=False)(x)
+    x = layers.Dense(units, use_bias=False, name='svd')(x)
     return x
 
 

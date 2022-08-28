@@ -1,3 +1,4 @@
+from random import sample
 from modelDesign_1 import build_model
 from optimizer import AdamWarmup
 import tensorflow as tf
@@ -33,6 +34,34 @@ class MaskBS(object):
         return x, y
 
 
+tf.keras.optimizers.Adam
+
+
+class SemiSupervise(object):
+    def __init__(self, model, total_steps, max_w=0.2):
+        self.model = model
+        self.total_steps = tf.constant(total_steps, dtype=tf.float32)
+        self.max_w = tf.constant(max_w, dtype=tf.float32)
+        self._step = tf.Variable(0, dtype=tf.float32)
+
+    @staticmethod
+    def _sample_mask(x, y):
+        return tf.reduce_any(tf.not_equal(y, 0), -1)
+
+    def __call__(self, x, y):
+        y_pred = self.model(x)
+        sample_mask = self._sample_mask(x, y)
+        y = tf.where(sample_mask[:, tf.newaxis], y, y_pred)
+
+        step = tf.minimum(self._step, self.total_steps)
+        alpha = step / self.total_steps
+        w = self.max_w * alpha
+        sample_weight = tf.where(sample_mask, 1.0, w)
+
+        self._step.assign_add(1)
+        return x, y, sample_weight
+
+
 def euclidean_loss(y_true, y_pred):
     distance = tf.math.sqrt(tf.reduce_sum(tf.pow(y_true-y_pred, 2), axis=-1))
     return tf.reduce_mean(distance)
@@ -57,9 +86,10 @@ class TrainEngine:
                  epochs=100,
                  learning_rate=1e-3,
                  dropout=0.0,
-                 masks=None,
+                 bs_masks=None,
                  svd_weight=None,
-                 loss_epsilon=0):
+                 loss_epsilon=0,
+                 max_semi_weight=None):
 
         self.batch_size = int(batch_size)
         self.infer_batch_size = int(infer_batch_size)
@@ -67,9 +97,10 @@ class TrainEngine:
         self.learning_rate = float(learning_rate)
         self.dropout = float(dropout)
         self.drop_remainder = False
-        self.augment = MaskBS(18, 4, masks)
+        self.augment = MaskBS(18, 4, bs_masks)
         self.svd_weight = svd_weight
         self.loss_epsilon = float(loss_epsilon)
+        self.max_semi_weight = float(max_semi_weight)
 
     def _init_environ(self):
         # Build distribute strategy on gpu or tpu
@@ -120,7 +151,7 @@ class TrainEngine:
                                    initial_learning_rate=self.learning_rate)
 
             model = build_model(x_train_shape[1:], 2, dropout=self.dropout)
-            svd_layer = model.layers[3]
+            svd_layer = model.get_layer('svd')
             if pretrained_path is not None:
                 print("Load pretrained weights from {}".format(pretrained_path))
                 model.load_weights(pretrained_path)
@@ -132,6 +163,11 @@ class TrainEngine:
             model.compile(optimizer=optimizer,
                           loss=clip_loss(tf.keras.losses.mae,
                                          self.loss_epsilon))
+
+            if self.max_semi_weight is not None:
+                semi = SemiSupervise(model, warmup_steps+decay_steps, self.max_semi_weight)
+                train_data = train_data.map(semi, autotune)
+
             model.summary()
             model.fit(x=train_data,
                       epochs=self.epochs,
@@ -146,9 +182,19 @@ class TrainEngine:
 
 
 if __name__ == '__main__':
-    x = np.random.random((2, 16, 2, 4)).astype(np.float32)
-    y = np.random.random((2, 2)).astype(np.float32)
+    x = np.random.random((100, 16, 2, 4)).astype(np.float32)
+    y = np.random.random((100, 2)).astype(np.float32)
+    y[:50] = 0
     augment = MaskBS(8, 2, [[1, 2, 4], [0, 6, 7], [3, 4, 5]])
-    dataset = tf.data.Dataset.from_tensor_slices((x, y)).map(augment).repeat()
-    for xx, yy in dataset:
-        print(xx, '\n')
+    dataset = tf.data.Dataset.from_tensor_slices((x, y)).map(augment).shuffle(100).batch(4)
+    model = tf.keras.Sequential(
+        [
+            tf.keras.layers.Input((16, 2, 4)),
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(2)
+        ]
+    )
+    semi = SemiSupervise(model, 10)
+    for data in dataset.map(semi):
+        print(data[1], data[2])
+        pass

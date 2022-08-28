@@ -16,20 +16,31 @@ def train(data_file,
           mask_mode=1,
           learn_svd=False,
           repeat_data_times=1,
+          max_semi_weight=None,
           **kwargs):
 
     tf.config.threading.set_inter_op_parallelism_threads(4)
     x, y = load_data(data_file, label_file)
-    y /= 120
     if learn_svd:
         svd_weight = TruncatedSVD(256).fit(x.reshape([len(x) * 72, -1])).components_.T
     else:
         svd_weight = None
 
-    x = x[:len(y)]
     test_size = kwargs.pop('test_size', 0.1)
-    x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
-    del x, y
+    x_train, x_valid, y_train, y_valid = train_test_split(
+        x[:len(y)], y / 120, test_size=test_size)
+
+    if max_semi_weight is not None:
+        assert len(x) > len(y)
+        semi_x = x[len(y):]
+        x_train = np.vstack([x_train, semi_x])
+        pseudo_y = np.zeros((len(x)-len(y), 2), dtype=np.float32)
+        y_train = np.vstack([y_train, pseudo_y])
+        ids = list(range(len(x_train)))
+        np.random.shuffle(ids)
+        x_train = x_train[ids]
+        y_train = y_train[ids]
+
     if repeat_data_times > 1:
         x_train = np.vstack([x_train] * repeat_data_times)
         y_train = np.vstack([y_train] * repeat_data_times)
@@ -45,9 +56,10 @@ def train(data_file,
                                epochs=kwargs.pop('epochs', 100),
                                learning_rate=kwargs.pop('learning_rate', 1e-3),
                                dropout=kwargs.pop('dropout', 0.0),
-                               masks=bs_masks,
+                               bs_masks=bs_masks,
                                svd_weight=svd_weight,
-                               loss_epsilon=kwargs.pop('loss_epsilon', 0.0))
+                               loss_epsilon=kwargs.pop('loss_epsilon', 0.0),
+                               max_semi_weight=max_semi_weight)
 
     # train_process = Process(target=train_engine,
     #                         args=(
