@@ -129,8 +129,7 @@ class TrainEngine:
                  valid_data,
                  repeat_data_times=1,
                  pretrained_path=None,
-                 verbose=1,
-                 model=None,):
+                 verbose=1):
 
         strategy = self._init_environ()
         x_train_shape = train_data[0].shape
@@ -143,20 +142,19 @@ class TrainEngine:
                                    decay_steps=decay_steps,
                                    initial_learning_rate=self.learning_rate)
 
-            if model is None:
-                model = build_model(x_train_shape[1:], 2, dropout=self.dropout)
-                svd_layer = model.get_layer('svd')
-                if pretrained_path is not None:
-                    print("Load pretrained weights from {}".format(pretrained_path))
-                    model.load_weights(pretrained_path)
-                if self.svd_weight is not None:
-                    print('Load svd weight!')
-                    svd_layer.set_weights([self.svd_weight])
+            model = build_model(x_train_shape[1:], 2, dropout=self.dropout)
+            svd_layer = model.get_layer('svd')
+            if pretrained_path is not None:
+                print("Load pretrained weights from {}".format(pretrained_path))
+                model.load_weights(pretrained_path)
+            if self.svd_weight is not None:
+                print('Load svd weight!')
+                svd_layer.set_weights([self.svd_weight])
 
-                svd_layer.trainable = False
-                model.compile(optimizer=optimizer,
-                              loss=clip_loss(tf.keras.losses.mae,
-                                             self.loss_epsilon))
+            svd_layer.trainable = False
+            model.compile(optimizer=optimizer,
+                          loss=clip_loss(tf.keras.losses.mae,
+                                         self.loss_epsilon))
 
             model.summary()
             model.fit(x=train_dataset,
@@ -176,14 +174,15 @@ class SemiTrainEngine(TrainEngine):
                  save_path,
                  batch_size,
                  infer_batch_size,
-                 unlabel_data,
+                 unlabel_x,
                  **kwargs):
 
         super(SemiTrainEngine, self).__init__(save_path,
                                               batch_size,
                                               infer_batch_size,
                                               **kwargs)
-        self.unlabel_data = unlabel_data
+        self.unlabel_x = unlabel_x
+        self.pred_y = None
 
     def __call__(self, train_data, valid_data,
                  repeat_data_times=1,
@@ -195,37 +194,8 @@ class SemiTrainEngine(TrainEngine):
                                                       pretrained_path=pretrained_path,
                                                       verbose=verbose)
 
-        y_pred = model.predict(self.unlabel_data, batch_size=self.infer_batch_size)
-        semi_x = np.vstack([train_data[0], self.unlabel_data])
-        semi_y = np.vstack([train_data[1], y_pred])
-        semi_data = self._shuffle_data(semi_x, semi_y)
-
-        self.learning_rate *= 0.8
-        self.loss_epsilon = 0.008
-        model = super(SemiTrainEngine, self).__call__(semi_data, valid_data,
-                                                      verbose=verbose,
-                                                      model=model)
-
-        model = super(SemiTrainEngine, self).__call__(train_data, valid_data,
-                                                      repeat_data_times=repeat_data_times,
-                                                      verbose=verbose,
-                                                      model=model)
-
-        y_pred = model.predict(self.unlabel_data, batch_size=self.infer_batch_size)
-        semi_x = np.vstack([train_data[0], self.unlabel_data])
-        semi_y = np.vstack([train_data[1], y_pred])
-        semi_data = self._shuffle_data(semi_x, semi_y)
-
-        self.learning_rate *= 0.8
-        self.loss_epsilon = 0.004
-        model = super(SemiTrainEngine, self).__call__(semi_data, valid_data,
-                                                      verbose=verbose,
-                                                      model=model)
-
-        model = super(SemiTrainEngine, self).__call__(train_data, valid_data,
-                                                      repeat_data_times=repeat_data_times,
-                                                      verbose=verbose,
-                                                      model=model)
+        self.pred_y = model.predict(self.unlabel_x, batch_size=self.infer_batch_size)
+        self.checkpoint.model = None
 
 
 if __name__ == '__main__':
