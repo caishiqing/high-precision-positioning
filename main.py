@@ -45,23 +45,23 @@ def train(data_file,
                                svd_weight=svd_weight,
                                loss_epsilon=kwargs.pop('loss_epsilon', 0.0))
 
-    # train_process = Process(target=train_engine,
-    #                         args=(
-    #                             (x_train, y_train),
-    #                             (x_valid, y_valid),
-    #                             repeat_data_times,
-    #                             pretrained_path,
-    #                             kwargs.pop('verbose', 1)
-    #                         ))
+    train_process = Process(target=train_engine,
+                            args=(
+                                (x_train, y_train),
+                                (x_valid, y_valid),
+                                repeat_data_times,
+                                pretrained_path,
+                                kwargs.pop('verbose', 1)
+                            ))
 
-    # train_process.start()
-    # train_process.join()
+    train_process.start()
+    train_process.join()
 
-    train_engine((x_train, y_train),
-                 (x_valid, y_valid),
-                 repeat_data_times,
-                 pretrained_path,
-                 kwargs.pop('verbose', 1))
+    # train_engine((x_train, y_train),
+    #              (x_valid, y_valid),
+    #              repeat_data_times,
+    #              pretrained_path,
+    #              kwargs.pop('verbose', 1))
 
 
 def semi_train(data_file,

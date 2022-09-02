@@ -1,5 +1,3 @@
-from ntpath import realpath
-from random import sample
 from modelDesign_1 import build_model
 from optimizer import AdamWarmup
 import tensorflow as tf
