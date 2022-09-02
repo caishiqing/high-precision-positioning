@@ -16,7 +16,6 @@ def train(data_file,
           mask_mode=1,
           learn_svd=False,
           repeat_data_times=1,
-          max_semi_weight=None,
           **kwargs):
 
     tf.config.threading.set_inter_op_parallelism_threads(4)
@@ -30,42 +29,27 @@ def train(data_file,
     x_train, x_valid, y_train, y_valid = train_test_split(
         x[:len(y)], y / 120, test_size=test_size)
 
-    if max_semi_weight is not None:
-        assert len(x) > len(y)
-        semi_x = x[len(y):]
-        x_train = np.vstack([x_train, semi_x])
-        pseudo_y = np.zeros((len(x)-len(y), 2), dtype=np.float32)
-        y_train = np.vstack([y_train, pseudo_y])
-        ids = list(range(len(x_train)))
-        np.random.shuffle(ids)
-        x_train = x_train[ids]
-        y_train = y_train[ids]
-
-    if repeat_data_times > 1:
-        x_train = np.vstack([x_train] * repeat_data_times)
-        y_train = np.vstack([y_train] * repeat_data_times)
-
     if mask_mode == 1:
         bs_masks = masks1
     elif mask_mode == 2:
         bs_masks = masks2
     print(bs_masks)
 
-    train_engine = TrainEngine(batch_size=kwargs.pop('batch_size', 128),
+    train_engine = TrainEngine(save_path,
+                               batch_size=kwargs.pop('batch_size', 128),
                                infer_batch_size=kwargs.pop('infer_batch_size', 128),
                                epochs=kwargs.pop('epochs', 100),
                                learning_rate=kwargs.pop('learning_rate', 1e-3),
                                dropout=kwargs.pop('dropout', 0.0),
                                bs_masks=bs_masks,
                                svd_weight=svd_weight,
-                               loss_epsilon=kwargs.pop('loss_epsilon', 0.0),
-                               max_semi_weight=max_semi_weight)
+                               loss_epsilon=kwargs.pop('loss_epsilon', 0.0))
 
     # train_process = Process(target=train_engine,
     #                         args=(
     #                             (x_train, y_train),
     #                             (x_valid, y_valid),
-    #                             save_path,
+    #                             repeat_data_times,
     #                             pretrained_path,
     #                             kwargs.pop('verbose', 1)
     #                         ))
@@ -75,7 +59,7 @@ def train(data_file,
 
     train_engine((x_train, y_train),
                  (x_valid, y_valid),
-                 save_path,
+                 repeat_data_times,
                  pretrained_path,
                  kwargs.pop('verbose', 1))
 

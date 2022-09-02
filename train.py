@@ -1,3 +1,4 @@
+from ntpath import realpath
 from random import sample
 from modelDesign_1 import build_model
 from optimizer import AdamWarmup
@@ -34,34 +35,6 @@ class MaskBS(object):
         return x, y
 
 
-tf.keras.optimizers.Adam
-
-
-class SemiSupervise(object):
-    def __init__(self, model, total_steps, max_w=0.2):
-        self.model = model
-        self.total_steps = tf.constant(total_steps, dtype=tf.float32)
-        self.max_w = tf.constant(max_w, dtype=tf.float32)
-        self._step = tf.Variable(0, dtype=tf.float32)
-
-    @staticmethod
-    def _sample_mask(x, y):
-        return tf.reduce_any(tf.not_equal(y, 0), -1)
-
-    def __call__(self, x, y):
-        y_pred = self.model(x)
-        sample_mask = self._sample_mask(x, y)
-        y = tf.where(sample_mask[:, tf.newaxis], y, y_pred)
-
-        step = tf.minimum(self._step, self.total_steps)
-        alpha = step / self.total_steps
-        w = self.max_w * alpha
-        sample_weight = tf.where(sample_mask, 1.0, w)
-
-        self._step.assign_add(1)
-        return x, y, sample_weight
-
-
 def euclidean_loss(y_true, y_pred):
     distance = tf.math.sqrt(tf.reduce_sum(tf.pow(y_true-y_pred, 2), axis=-1))
     return tf.reduce_mean(distance)
@@ -81,6 +54,7 @@ def clip_loss(loss_fn, epsilon=0):
 
 class TrainEngine:
     def __init__(self,
+                 save_path,
                  batch_size,
                  infer_batch_size,
                  epochs=100,
@@ -88,9 +62,9 @@ class TrainEngine:
                  dropout=0.0,
                  bs_masks=None,
                  svd_weight=None,
-                 loss_epsilon=0,
-                 max_semi_weight=None):
+                 loss_epsilon=0):
 
+        self.save_path = save_path
         self.batch_size = int(batch_size)
         self.infer_batch_size = int(infer_batch_size)
         self.epochs = int(epochs)
@@ -100,7 +74,12 @@ class TrainEngine:
         self.augment = MaskBS(18, 4, bs_masks)
         self.svd_weight = svd_weight
         self.loss_epsilon = float(loss_epsilon)
-        self.max_semi_weight = max_semi_weight
+
+        self.checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
+                                                             save_best_only=True,
+                                                             save_weights_only=False,
+                                                             mode='min',
+                                                             monitor='val_loss')
 
     def _init_environ(self):
         # Build distribute strategy on gpu or tpu
@@ -117,32 +96,48 @@ class TrainEngine:
 
         return strategy
 
+    @staticmethod
+    def _shuffle_data(x, y):
+        ids = list(range(len(x)))
+        np.random.shuffle(ids)
+        x = x[ids]
+        y = y[ids]
+        return x, y
+
     def _compute_warmup_steps(self, num_samples):
         total_steps = num_samples // self.batch_size * self.epochs
         warmup_steps = int(total_steps * 0.1)
         decay_steps = total_steps - warmup_steps
         return warmup_steps, decay_steps
 
-    def __call__(self, train_data, valid_data, save_path,
-                 pretrained_path=None, verbose=1):
+    def _prepare_dataset(self, train_data, valid_data, repeat_data_times=1):
+        if repeat_data_times > 1:
+            x_train, y_train = train_data
+            x_train = np.vstack([x_train] * repeat_data_times)
+            y_train = np.vstack([y_train] * repeat_data_times)
+            train_data = self._shuffle_data(x_train, y_train)
+
+        autotune = tf.data.experimental.AUTOTUNE
+        train_dataset = tf.data.Dataset.from_tensor_slices(
+            train_data).map(self.augment, autotune).batch(self.batch_size,
+                                                          self.drop_remainder)
+        valid_dataset = tf.data.Dataset.from_tensor_slices(
+            valid_data).map(self.augment, autotune).batch(valid_data[0].shape[0])
+        valid_dataset = list(valid_dataset)[0]
+        return train_dataset, valid_dataset
+
+    def __call__(self,
+                 train_data,
+                 valid_data,
+                 repeat_data_times=1,
+                 pretrained_path=None,
+                 verbose=1,
+                 model=None,):
 
         strategy = self._init_environ()
         x_train_shape = train_data[0].shape
-        x_valid_shape = valid_data[0].shape
-
-        autotune = tf.data.experimental.AUTOTUNE
-        train_data = tf.data.Dataset.from_tensor_slices(
-            train_data).map(self.augment, autotune).batch(self.batch_size,
-                                                          self.drop_remainder)
-        valid_data = tf.data.Dataset.from_tensor_slices(
-            valid_data).map(self.augment, autotune).batch(x_valid_shape[0])
-        valid_data = list(valid_data)[0]
-
-        checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
-                                                        save_best_only=True,
-                                                        save_weights_only=False,
-                                                        mode='min',
-                                                        monitor='val_loss')
+        train_dataset, valid_dataset = self._prepare_dataset(train_data, valid_data,
+                                                             repeat_data_times=repeat_data_times)
 
         with strategy.scope():
             warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
@@ -150,35 +145,89 @@ class TrainEngine:
                                    decay_steps=decay_steps,
                                    initial_learning_rate=self.learning_rate)
 
-            model = build_model(x_train_shape[1:], 2, dropout=self.dropout)
-            svd_layer = model.get_layer('svd')
-            if pretrained_path is not None:
-                print("Load pretrained weights from {}".format(pretrained_path))
-                model.load_weights(pretrained_path)
-            if self.svd_weight is not None:
-                print('Load svd weight!')
-                svd_layer.set_weights([self.svd_weight])
+            if model is None:
+                model = build_model(x_train_shape[1:], 2, dropout=self.dropout)
+                svd_layer = model.get_layer('svd')
+                if pretrained_path is not None:
+                    print("Load pretrained weights from {}".format(pretrained_path))
+                    model.load_weights(pretrained_path)
+                if self.svd_weight is not None:
+                    print('Load svd weight!')
+                    svd_layer.set_weights([self.svd_weight])
 
-            svd_layer.trainable = False
-            model.compile(optimizer=optimizer,
-                          loss=clip_loss(tf.keras.losses.mae,
-                                         self.loss_epsilon))
-
-            if self.max_semi_weight is not None:
-                semi = SemiSupervise(model, warmup_steps+decay_steps, self.max_semi_weight)
-                train_data = train_data.map(semi, autotune)
+                svd_layer.trainable = False
+                model.compile(optimizer=optimizer,
+                              loss=clip_loss(tf.keras.losses.mae,
+                                             self.loss_epsilon))
 
             model.summary()
-            model.fit(x=train_data,
+            model.fit(x=train_dataset,
                       epochs=self.epochs,
-                      validation_data=valid_data,
+                      validation_data=valid_dataset,
                       validation_batch_size=self.infer_batch_size,
-                      callbacks=[checkpoint],
+                      callbacks=[self.checkpoint],
                       verbose=verbose)
 
-        print(checkpoint.best)
-        model.load_weights(save_path)
+        print(self.checkpoint.best)
+        model.load_weights(self.save_path)
         return model
+
+
+class SemiTrainEngine(TrainEngine):
+    def __init__(self,
+                 save_path,
+                 batch_size,
+                 infer_batch_size,
+                 unlabel_data,
+                 **kwargs):
+
+        super(SemiTrainEngine, self).__init__(save_path,
+                                              batch_size,
+                                              infer_batch_size,
+                                              **kwargs)
+        self.unlabel_data = unlabel_data
+
+    def __call__(self, train_data, valid_data,
+                 repeat_data_times=1,
+                 pretrained_path=None,
+                 verbose=1):
+
+        model = super(SemiTrainEngine, self).__call__(train_data, valid_data,
+                                                      repeat_data_times=repeat_data_times,
+                                                      pretrained_path=pretrained_path,
+                                                      verbose=verbose)
+
+        y_pred = model.predict(self.unlabel_data, batch_size=self.infer_batch_size)
+        semi_x = np.vstack([train_data[0], self.unlabel_data])
+        semi_y = np.vstack([train_data[1], y_pred])
+        semi_data = self._shuffle_data(semi_x, semi_y)
+
+        self.learning_rate *= 0.8
+        self.loss_epsilon = 0.008
+        model = super(SemiTrainEngine, self).__call__(semi_data, valid_data,
+                                                      verbose=verbose,
+                                                      model=model)
+
+        model = super(SemiTrainEngine, self).__call__(train_data, valid_data,
+                                                      repeat_data_times=repeat_data_times,
+                                                      verbose=verbose,
+                                                      model=model)
+
+        y_pred = model.predict(self.unlabel_data, batch_size=self.infer_batch_size)
+        semi_x = np.vstack([train_data[0], self.unlabel_data])
+        semi_y = np.vstack([train_data[1], y_pred])
+        semi_data = self._shuffle_data(semi_x, semi_y)
+
+        self.learning_rate *= 0.8
+        self.loss_epsilon = 0.004
+        model = super(SemiTrainEngine, self).__call__(semi_data, valid_data,
+                                                      verbose=verbose,
+                                                      model=model)
+
+        model = super(SemiTrainEngine, self).__call__(train_data, valid_data,
+                                                      repeat_data_times=repeat_data_times,
+                                                      verbose=verbose,
+                                                      model=model)
 
 
 if __name__ == '__main__':
@@ -194,7 +243,3 @@ if __name__ == '__main__':
             tf.keras.layers.Dense(2)
         ]
     )
-    semi = SemiSupervise(model, 10)
-    for data in dataset.map(semi):
-        print(data[1], data[2])
-        pass
