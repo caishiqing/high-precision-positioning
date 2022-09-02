@@ -7,6 +7,7 @@ from multiprocessing import Process
 import tensorflow as tf
 import numpy as np
 import fire
+import os
 
 import multiprocessing
 multiprocessing.set_start_method('spawn', force=True)
@@ -21,6 +22,7 @@ def train(data_file,
           repeat_data_times=1,
           **kwargs):
 
+    os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     tf.config.threading.set_inter_op_parallelism_threads(4)
     x, y = load_data(data_file, label_file)
     if learn_svd:
