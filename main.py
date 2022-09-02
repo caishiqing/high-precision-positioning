@@ -8,8 +8,8 @@ import tensorflow as tf
 import numpy as np
 import fire
 
-import multiprocessing
-multiprocessing.set_start_method('spawn', force=True)
+# import multiprocessing
+# multiprocessing.set_start_method('spawn', force=True)
 
 
 def train(data_file,

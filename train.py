@@ -22,7 +22,7 @@ class MaskBS(object):
         for i, mask in enumerate(masks):
             self.masks[i][mask] = 1
 
-        self.masks = tf.constant(self.masks)[:, :, tf.newaxis, tf.newaxis, tf.newaxis]
+        self.masks = tf.identity(self.masks)[:, :, tf.newaxis, tf.newaxis, tf.newaxis]
         self.masks = tf.tile(self.masks, [1, 1, num_antennas_per_bs, 1, 1])
 
     def __call__(self, x, y):
