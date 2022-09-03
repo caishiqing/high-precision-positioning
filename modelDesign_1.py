@@ -149,6 +149,8 @@ class SelfAttention(MultiHeadAttention):
         if mask is not None:
             attention_mask = tf.logical_and(mask[:, :, tf.newaxis],
                                             mask[:, tf.newaxis, :])
+            diag_mask = tf.linalg.diag(tf.ones_like(mask))
+            attention_mask = tf.logical_or(attention_mask, diag_mask)
         else:
             attention_mask = None
 

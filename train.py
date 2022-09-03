@@ -43,9 +43,8 @@ class MaskBS(object):
         mx = x * mask
         if self.svd_weight is not None:
             is_unlabel = tf.reduce_all(tf.less_equal(y, 0))
-            mx = tf.cond(is_unlabel, lambda: mx + 1e-5 * (1 - mask), lambda: mx)
-            x = tf.keras.backend.batch_flatten(x * (1 - mask))
-            h = tf.matmul(x, self.svd_weight)
+            hx = tf.keras.backend.batch_flatten(x * (1 - mask))
+            h = tf.matmul(hx, self.svd_weight)
             h = tf.cond(is_unlabel, lambda: h, lambda: h * 0)
             return mx, (y, h)
 
@@ -281,5 +280,5 @@ if __name__ == '__main__':
     augment = MaskBS(8, 2, [[1, 2, 4], [0, 6, 7], [3, 4, 5]], svd_weight=w)
     dataset = tf.data.Dataset.from_tensor_slices((x, y)).map(augment).shuffle(100).batch(4)
     for x, (y, h) in dataset:
-        print(y, h)
+        print(x, y, h)
         pass
