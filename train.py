@@ -148,6 +148,7 @@ class TrainEngine:
         valid_dataset = tf.data.Dataset.from_tensor_slices(
             valid_data).map(self.augment, autotune).batch(valid_data[0].shape[0])
         valid_dataset = list(valid_dataset)[0]
+        print(valid_dataset[1])
         return train_dataset, valid_dataset
 
     def __call__(self,
