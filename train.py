@@ -1,3 +1,4 @@
+from operator import is_
 from modelDesign_1 import build_model
 from optimizer import AdamWarmup
 import tensorflow as tf
@@ -13,7 +14,12 @@ def load_data(x_file, y_file):
 
 
 class MaskBS(object):
-    def __init__(self, total_bs=18, num_antennas_per_bs=4, masks=None):
+    def __init__(self,
+                 total_bs=18,
+                 num_antennas_per_bs=4,
+                 masks=None,
+                 svd_weight=None):
+
         if masks is None:
             masks = [list(range(total_bs))]
 
@@ -22,15 +28,28 @@ class MaskBS(object):
         for i, mask in enumerate(masks):
             self.masks[i][mask] = 1
 
-        self.masks = tf.identity(self.masks)[:, :, tf.newaxis, tf.newaxis, tf.newaxis]
+        self.masks = tf.constant(self.masks)[:, :, tf.newaxis, tf.newaxis, tf.newaxis]
         self.masks = tf.tile(self.masks, [1, 1, num_antennas_per_bs, 1, 1])
+
+        if svd_weight is not None:
+            self.svd_weight = tf.constant(svd_weight, dtype=tf.float32)
+        else:
+            self.svd_weight = None
 
     def __call__(self, x, y):
         rand = tf.cast(tf.random.uniform([]) * self.num_masks, tf.int32)
         mask = self.masks[rand]
         mask = tf.reshape(mask, [-1, 1, 1])
-        x *= mask
-        return x, y
+        mx = x * mask
+        if self.svd_weight is not None:
+            is_unlabel = tf.reduce_all(tf.less_equal(y, 0))
+            mx = tf.cond(is_unlabel, lambda: mx + 1e-5 * (1 - mask), lambda: mx)
+            x = tf.keras.backend.batch_flatten(x * (1 - mask))
+            h = tf.matmul(x, self.svd_weight)
+            h = tf.cond(is_unlabel, lambda: h, lambda: h * 0)
+            return mx, (y, h)
+
+        return mx, y
 
 
 def euclidean_loss(y_true, y_pred):
@@ -50,17 +69,25 @@ def clip_loss(loss_fn, epsilon=0):
     return _loss_fn
 
 
+def mask_mae(y_true, y_pred):
+    mask = tf.reduce_any(tf.greater(y_true, 0), axis=-1)
+    y_true = tf.boolean_mask(y_true, mask)
+    y_pred = tf.boolean_mask(y_pred, mask)
+    return tf.keras.losses.mae(y_true, y_pred)
+
+
 class TrainEngine:
     def __init__(self,
                  save_path,
-                 batch_size,
-                 infer_batch_size,
+                 batch_size=128,
+                 infer_batch_size=128,
                  epochs=100,
                  learning_rate=1e-3,
                  dropout=0.0,
                  bs_masks=None,
                  svd_weight=None,
-                 loss_epsilon=0):
+                 loss_epsilon=0,
+                 monitor='val_loss'):
 
         self.save_path = save_path
         self.batch_size = int(batch_size)
@@ -77,7 +104,7 @@ class TrainEngine:
                                                              save_best_only=True,
                                                              save_weights_only=False,
                                                              mode='min',
-                                                             monitor='val_loss')
+                                                             monitor=monitor)
 
     def _init_environ(self):
         # Build distribute strategy on gpu or tpu
@@ -133,8 +160,9 @@ class TrainEngine:
 
         strategy = self._init_environ()
         x_train_shape = train_data[0].shape
-        train_dataset, valid_dataset = self._prepare_dataset(train_data, valid_data,
-                                                             repeat_data_times=repeat_data_times)
+        train_dataset, valid_dataset = self._prepare_dataset(train_data,
+                                                             valid_data,
+                                                             repeat_data_times)
 
         with strategy.scope():
             warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
@@ -169,18 +197,65 @@ class TrainEngine:
         return model
 
 
-class SemiTrainEngine(TrainEngine):
-    def __init__(self,
-                 save_path,
-                 batch_size,
-                 infer_batch_size,
-                 unlabel_x,
-                 **kwargs):
+class MultiTaskTrainEngine(TrainEngine):
+    def __init__(self, save_path, **kwargs):
+        kwargs['monitor'] = 'val_pos_loss'
+        super(MultiTaskTrainEngine, self).__init__(save_path, **kwargs)
 
-        super(SemiTrainEngine, self).__init__(save_path,
-                                              batch_size,
-                                              infer_batch_size,
-                                              **kwargs)
+        svd_weight = kwargs.get('svd_weight')
+        assert svd_weight is not None
+        self.augment = MaskBS(18, 4, bs_masks, svd_weight=svd_weight)
+
+    def __call__(self,
+                 train_data,
+                 valid_data,
+                 repeat_data_times=1,
+                 pretrained_path=None,
+                 verbose=1):
+
+        strategy = self._init_environ()
+        x_train_shape = train_data[0].shape
+        train_dataset, valid_dataset = self._prepare_dataset(train_data,
+                                                             valid_data,
+                                                             repeat_data_times)
+
+        with strategy.scope():
+            warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
+            optimizer = AdamWarmup(warmup_steps=warmup_steps,
+                                   decay_steps=decay_steps,
+                                   initial_learning_rate=self.learning_rate)
+
+            pos_model, mbs_model = build_model(x_train_shape[1:], 2,
+                                               dropout=self.dropout,
+                                               multi_task=True)
+            svd_layer = pos_model.get_layer('svd')
+            if pretrained_path is not None:
+                print("Load pretrained weights from {}".format(pretrained_path))
+                pos_model.load_weights(pretrained_path)
+            if self.svd_weight is not None:
+                print('Load svd weight!')
+                svd_layer.set_weights([self.svd_weight])
+
+            svd_layer.trainable = False
+            mbs_model.compile(optimizer=optimizer, loss=mask_mae)
+
+            mbs_model.summary()
+            mbs_model.fit(x=train_dataset,
+                          epochs=self.epochs,
+                          validation_data=valid_dataset,
+                          validation_batch_size=self.infer_batch_size,
+                          callbacks=[self.checkpoint],
+                          verbose=verbose)
+
+        print(self.checkpoint.best)
+        mbs_model.load_weights(self.save_path)
+        pos_model.save(self.save_path)
+        return pos_model
+
+
+class SemiTrainEngine(TrainEngine):
+    def __init__(self, save_path, unlabel_x, **kwargs):
+        super(SemiTrainEngine, self).__init__(save_path, **kwargs)
         self.unlabel_x = unlabel_x
         self.pred_y = None
 
@@ -202,12 +277,9 @@ if __name__ == '__main__':
     x = np.random.random((100, 16, 2, 4)).astype(np.float32)
     y = np.random.random((100, 2)).astype(np.float32)
     y[:50] = 0
-    augment = MaskBS(8, 2, [[1, 2, 4], [0, 6, 7], [3, 4, 5]])
+    w = np.random.random((8, 4))
+    augment = MaskBS(8, 2, [[1, 2, 4], [0, 6, 7], [3, 4, 5]], svd_weight=w)
     dataset = tf.data.Dataset.from_tensor_slices((x, y)).map(augment).shuffle(100).batch(4)
-    model = tf.keras.Sequential(
-        [
-            tf.keras.layers.Input((16, 2, 4)),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(2)
-        ]
-    )
+    for x, (y, h) in dataset:
+        print(y, h)
+        pass

@@ -177,8 +177,6 @@ class AntennaEmbedding(layers.Layer):
     def call(self, x, mask=None):
         cls_embed = tf.tile(self.embeddings[tf.newaxis, :1, :], [tf.shape(x)[0], 1, 1])
         ant_embed = self.embeddings[tf.newaxis, 1:, :]
-        if mask is not None:
-            ant_embed *= tf.cast(mask, ant_embed.dtype)[:, :, tf.newaxis]
 
         x += ant_embed
         x = tf.concat([cls_embed, x], axis=1)
@@ -291,7 +289,8 @@ def build_model(input_shape,
                 num_heads=8,
                 num_attention_layers=6,
                 dropout=0.0,
-                norm_size=None):
+                norm_size=None,
+                multi_task=False):
 
     assert embed_dim % num_heads == 0
 
@@ -316,13 +315,21 @@ def build_model(input_shape,
         )
         h = layers.LayerNormalization()(h)
 
-    h = layers.Lambda(lambda x: x[:, 0, :])(h)
-    y = layers.Dense(output_shape)(h)
+    cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
+    y = layers.Dense(output_shape, name='pos')(cls_h)
     if norm_size is not None:
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
     model = tf.keras.Model(x, y)
     model.save = types.MethodType(save, model)
+
+    if multi_task:
+        h = layers.Lambda(lambda x: x[:, 1:, :])(h)
+        svd_x = layers.Dense(embed_dim, 'mbs')(h)
+        mbs_model = tf.keras.Model(x, [y, svd_x])
+        model.save = types.MethodType(save, mbs_model)
+        return model, mbs_model
+
     return model
 
 
