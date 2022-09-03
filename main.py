@@ -93,7 +93,7 @@ def multi_task_train(data_file,
     x_unlabel = x[len(y):]
     y_unlabel = np.zeros((len(x)-len(y), 2), dtype=np.float32)
     x_train = np.vstack([x_train, x_unlabel])
-    y_train = np.vstack(y_train, y_unlabel)
+    y_train = np.vstack([y_train, y_unlabel])
 
     if mask_mode == 1:
         bs_masks = masks1
