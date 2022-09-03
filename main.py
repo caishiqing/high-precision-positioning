@@ -164,27 +164,27 @@ def semi_train(data_file,
     train_process.start()
     train_process.join()
 
-    x_semi_train = np.vstack([x_train, train_engine.x_unlabel])
-    y_semi_train = np.vstack([y_train, train_engine.y_unlabel])
-    train_process = Process(target=train_engine,
-                            args=(
-                                 (x_semi_train, y_semi_train),
-                                 (x_valid, y_valid),
-                                 save_path
-                            ))
+    # x_semi_train = np.vstack([x_train, train_engine.x_unlabel])
+    # y_semi_train = np.vstack([y_train, train_engine.y_unlabel])
+    # train_process = Process(target=train_engine,
+    #                         args=(
+    #                              (x_semi_train, y_semi_train),
+    #                              (x_valid, y_valid),
+    #                              save_path
+    #                         ))
 
-    train_process.start()
-    train_process.join()
+    # train_process.start()
+    # train_process.join()
 
-    train_process = Process(target=train_engine,
-                            args=(
-                                 (x_train, y_train),
-                                 (x_valid, y_valid),
-                                 save_path
-                            ))
+    # train_process = Process(target=train_engine,
+    #                         args=(
+    #                              (x_train, y_train),
+    #                              (x_valid, y_valid),
+    #                              save_path
+    #                         ))
 
-    train_process.start()
-    train_process.join()
+    # train_process.start()
+    # train_process.join()
 
 
 def test(data_file,
