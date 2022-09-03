@@ -81,44 +81,46 @@ class TrainEngine:
                  batch_size=128,
                  infer_batch_size=128,
                  epochs=100,
+                 steps_per_epoch=None,
                  learning_rate=1e-3,
                  dropout=0.0,
                  bs_masks=None,
                  svd_weight=None,
                  loss_epsilon=0,
-                 monitor='val_loss'):
+                 monitor='val_loss',
+                 verbose=1):
 
         self.save_path = save_path
         self.batch_size = int(batch_size)
         self.infer_batch_size = int(infer_batch_size)
         self.epochs = int(epochs)
+        self.steps_per_epoch = steps_per_epoch
         self.learning_rate = float(learning_rate)
         self.dropout = float(dropout)
         self.drop_remainder = False
         self.augment = MaskBS(18, 4, bs_masks)
         self.svd_weight = svd_weight
         self.loss_epsilon = float(loss_epsilon)
+        self.verbose = verbose
 
+        self.autotune = tf.data.experimental.AUTOTUNE
         self.checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
                                                              save_best_only=True,
                                                              save_weights_only=False,
                                                              mode='min',
                                                              monitor=monitor)
 
-    def _init_environ(self):
         # Build distribute strategy on gpu or tpu
         try:
             tpu = tf.distribute.cluster_resolver.TPUClusterResolver()
             print('Running on TPU ', tpu.master())
             tf.config.experimental_connect_to_cluster(tpu)
             tf.tpu.experimental.initialize_tpu_system(tpu)
-            strategy = tf.distribute.experimental.TPUStrategy(tpu)
+            self.strategy = tf.distribute.experimental.TPUStrategy(tpu)
             self.drop_remainder = True
         except:
             print("Runing on gpu or cpu")
-            strategy = tf.distribute.get_strategy()
-
-        return strategy
+            self.strategy = tf.distribute.get_strategy()
 
     @staticmethod
     def _shuffle_data(x, y):
@@ -129,42 +131,44 @@ class TrainEngine:
         return x, y
 
     def _compute_warmup_steps(self, num_samples):
-        total_steps = num_samples // self.batch_size * self.epochs
+        if self.steps_per_epoch is not None:
+            total_steps = self.steps_per_epoch * self.epochs
+        else:
+            total_steps = num_samples // self.batch_size * self.epochs
+
         warmup_steps = int(total_steps * 0.1)
         decay_steps = total_steps - warmup_steps
         return warmup_steps, decay_steps
 
-    def _prepare_dataset(self, train_data, valid_data, repeat_data_times=1):
-        if repeat_data_times > 1:
-            x_train, y_train = train_data
-            x_train = np.vstack([x_train] * repeat_data_times)
-            y_train = np.vstack([y_train] * repeat_data_times)
-            train_data = self._shuffle_data(x_train, y_train)
-
+    def _prepare_train_dataset(self, train_data):
+        num_samples = len(train_data[0])
         autotune = tf.data.experimental.AUTOTUNE
-        train_dataset = tf.data.Dataset.from_tensor_slices(
-            train_data).map(self.augment, autotune).batch(self.batch_size,
-                                                          self.drop_remainder)
-        valid_dataset = tf.data.Dataset.from_tensor_slices(
-            valid_data).map(self.augment, autotune).batch(valid_data[0].shape[0])
-        valid_dataset = list(valid_dataset)[0]
+        train_dataset = tf.data.Dataset.from_tensor_slices(train_data)
+        if self.steps_per_epoch is not None:
+            train_dataset = train_dataset.repeat().shuffle(num_samples, reshuffle_each_iteration=True)
 
-        return train_dataset, valid_dataset
+        train_dataset = train_dataset.map(self.augment,
+                                          autotune).batch(self.batch_size,
+                                                          self.drop_remainder)
+
+        return train_dataset
+
+    def _prepare_valid_dataset(self, valid_data):
+        valid_dataset = tf.data.Dataset.from_tensor_slices(
+            valid_data).map(self.augment, self.autotune).batch(valid_data[0].shape[0])
+        valid_dataset = list(valid_dataset)[0]
+        return valid_dataset
 
     def _train(self,
                train_data,
                valid_data,
-               repeat_data_times=1,
-               pretrained_path=None,
-               verbose=1):
+               pretrained_path=None):
 
-        strategy = self._init_environ()
         x_train_shape = train_data[0].shape
-        train_dataset, valid_dataset = self._prepare_dataset(train_data,
-                                                             valid_data,
-                                                             repeat_data_times)
+        train_dataset = self._prepare_train_dataset(train_data)
+        valid_dataset = self._prepare_valid_dataset(valid_data)
 
-        with strategy.scope():
+        with self.strategy.scope():
             warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
             optimizer = AdamWarmup(warmup_steps=warmup_steps,
                                    decay_steps=decay_steps,
@@ -187,27 +191,18 @@ class TrainEngine:
             model.summary()
             model.fit(x=train_dataset,
                       epochs=self.epochs,
+                      steps_per_epoch=self.steps_per_epoch,
                       validation_data=valid_dataset,
                       validation_batch_size=self.infer_batch_size,
                       callbacks=[self.checkpoint],
-                      verbose=verbose)
+                      verbose=self.verbose)
 
         print(self.checkpoint.best)
         model.load_weights(self.save_path)
         return model
 
-    def __call__(self,
-                 train_data,
-                 valid_data,
-                 repeat_data_times=1,
-                 pretrained_path=None,
-                 verbose=1):
-
-        train_data = self._shuffle_data(*train_data)
-        return self._train(train_data, valid_data,
-                           repeat_data_times=repeat_data_times,
-                           pretrained_path=pretrained_path,
-                           verbose=verbose)
+    def __call__(self, *args, **kwargs):
+        return self._train(*args, **kwargs)
 
 
 class MultiTaskTrainEngine(TrainEngine):
@@ -222,15 +217,11 @@ class MultiTaskTrainEngine(TrainEngine):
     def _train(self,
                train_data,
                valid_data,
-               repeat_data_times=1,
-               pretrained_path=None,
-               verbose=1):
+               pretrained_path=None):
 
         strategy = self._init_environ()
         x_train_shape = train_data[0].shape
-        train_dataset, valid_dataset = self._prepare_dataset(train_data,
-                                                             valid_data,
-                                                             repeat_data_times)
+        train_dataset, valid_dataset = self._prepare_dataset(train_data, valid_data)
 
         with strategy.scope():
             warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
@@ -255,10 +246,11 @@ class MultiTaskTrainEngine(TrainEngine):
             mbs_model.summary()
             mbs_model.fit(x=train_dataset,
                           epochs=self.epochs,
+                          steps_per_epoch=self.steps_per_epoch,
                           validation_data=valid_dataset,
                           validation_batch_size=self.infer_batch_size,
                           callbacks=[self.checkpoint],
-                          verbose=verbose)
+                          verbose=self.verbose)
 
         print(self.checkpoint.best)
         mbs_model.load_weights(self.save_path)
@@ -267,23 +259,77 @@ class MultiTaskTrainEngine(TrainEngine):
 
 
 class SemiTrainEngine(TrainEngine):
-    def __init__(self, save_path, unlabel_x, **kwargs):
+    def __init__(self, save_path, x_unlabel, **kwargs):
         super(SemiTrainEngine, self).__init__(save_path, **kwargs)
-        self.unlabel_x = unlabel_x
-        self.pred_y = None
+        self.x_unlabel = x_unlabel
+        self.y_unlabel = None
 
-    def _train(self, train_data, valid_data,
-               repeat_data_times=1,
-               pretrained_path=None,
-               verbose=1):
+    def _train(self,
+               train_data,
+               valid_data,
+               pretrained_path=None):
 
-        model = super(SemiTrainEngine, self)._train(train_data, valid_data,
-                                                    repeat_data_times=repeat_data_times,
-                                                    pretrained_path=pretrained_path,
-                                                    verbose=verbose)
+        x_train, y_train = train_data
+        x_train_shape = x_train.shape
+        train_dataset = self._prepare_train_dataset(train_data)
+        valid_dataset = self._prepare_valid_dataset(valid_data)
 
-        self.pred_y = model.predict(self.unlabel_x, batch_size=self.infer_batch_size)
-        self.checkpoint.model = None
+        with self.strategy.scope():
+            warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
+            optimizer = AdamWarmup(warmup_steps=warmup_steps,
+                                   decay_steps=decay_steps,
+                                   initial_learning_rate=self.learning_rate)
+
+            model = build_model(x_train_shape[1:], 2, dropout=self.dropout)
+            svd_layer = model.get_layer('svd')
+            if pretrained_path is not None:
+                print("Load pretrained weights from {}".format(pretrained_path))
+                model.load_weights(pretrained_path)
+            if self.svd_weight is not None:
+                print('Load svd weight!')
+                svd_layer.set_weights([self.svd_weight])
+
+            svd_layer.trainable = False
+            model.compile(optimizer=optimizer,
+                          loss=clip_loss(tf.keras.losses.mae,
+                                         self.loss_epsilon))
+
+            model.summary()
+            model.fit(x=train_dataset,
+                      epochs=self.epochs,
+                      steps_per_epoch=self.steps_per_epoch,
+                      validation_data=valid_dataset,
+                      validation_batch_size=self.infer_batch_size,
+                      callbacks=[self.checkpoint],
+                      verbose=self.verbose)
+            print(self.checkpoint.best)
+            model.load_weights(self.save_path)
+
+            self.y_unlabel = model.predict(self.x_unlabel, batch_size=self.infer_batch_size)
+            train_dataset = self._prepare_train_dataset((np.vstack([x_train, self.x_unlabel]),
+                                                        np.vstack([y_train, self.y_unlabel])))
+            model.fit(x=train_dataset,
+                      epochs=self.epochs,
+                      steps_per_epoch=self.steps_per_epoch,
+                      validation_data=valid_dataset,
+                      validation_batch_size=self.infer_batch_size,
+                      callbacks=[self.checkpoint],
+                      verbose=self.verbose)
+            print(self.checkpoint.best)
+            model.load_weights(self.save_path)
+
+            train_dataset = self._prepare_train_dataset((x_train, y_train))
+            model.fit(x=train_dataset,
+                      epochs=self.epochs,
+                      steps_per_epoch=self.steps_per_epoch,
+                      validation_data=valid_dataset,
+                      validation_batch_size=self.infer_batch_size,
+                      callbacks=[self.checkpoint],
+                      verbose=self.verbose)
+            print(self.checkpoint.best)
+            model.load_weights(self.save_path)
+
+        return model
 
 
 if __name__ == '__main__':

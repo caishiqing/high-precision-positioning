@@ -312,8 +312,7 @@ def build_model(input_shape,
 
     if multi_task:
         h = layers.Lambda(lambda x: x[:, 1:, :])(h)
-        h = layers.Dense(embed_dim, name='mbs')(h)
-        svd_x = layers.LayerNormalization()(h)
+        svd_x = layers.Dense(embed_dim, name='mbs')(h)
         mbs_model = tf.keras.Model(x, [y, svd_x])
         mbs_model.save = types.MethodType(save, mbs_model)
         return model, mbs_model

@@ -19,7 +19,6 @@ def train(data_file,
           pretrained_path=None,
           mask_mode=1,
           learn_svd=False,
-          repeat_data_times=1,
           **kwargs):
 
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
@@ -31,7 +30,6 @@ def train(data_file,
     else:
         svd_weight = None
 
-    verbose = kwargs.pop('verbose', 1)
     test_size = kwargs.pop('test_size', 0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(
         x[:len(y)], y / 120, test_size=test_size)
@@ -43,25 +41,23 @@ def train(data_file,
     print(bs_masks)
 
     train_engine = TrainEngine(save_path,
-                               batch_size=kwargs.pop('batch_size', 128),
-                               infer_batch_size=kwargs.pop('infer_batch_size', 128),
-                               epochs=kwargs.pop('epochs', 100),
-                               learning_rate=kwargs.pop('learning_rate', 1e-3),
-                               dropout=kwargs.pop('dropout', 0.0),
+                               batch_size=kwargs.get('batch_size', 128),
+                               infer_batch_size=kwargs.get('infer_batch_size', 128),
+                               epochs=kwargs.get('epochs', 100),
+                               steps_per_epoch=kwargs.get('steps_per_epoch'),
+                               learning_rate=kwargs.get('learning_rate', 1e-3),
+                               dropout=kwargs.get('dropout', 0.0),
                                bs_masks=bs_masks,
                                svd_weight=svd_weight,
-                               loss_epsilon=kwargs.pop('loss_epsilon', 0.0))
+                               loss_epsilon=kwargs.get('loss_epsilon', 0.0),
+                               verbose=kwargs.pop('verbose', 1))
 
     train_process = Process(target=train_engine,
                             args=(
                                  (x_train, y_train),
-                                 (x_valid, y_valid)
-                            ),
-                            kwargs={
-                                'repeat_data_times': repeat_data_times,
-                                'pretrained_path': pretrained_path,
-                                'verbose': verbose
-                            })
+                                 (x_valid, y_valid),
+                                pretrained_path
+                            ))
 
     train_process.start()
     train_process.join()
@@ -73,7 +69,6 @@ def multi_task_train(data_file,
                      pretrained_path=None,
                      mask_mode=1,
                      learn_svd=False,
-                     repeat_data_times=1,
                      **kwargs):
 
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
@@ -85,7 +80,6 @@ def multi_task_train(data_file,
     else:
         svd_weight = None
 
-    verbose = kwargs.pop('verbose', 1)
     test_size = kwargs.pop('test_size', 0.1)
     y = np.vstack([y, np.zeros((len(x)-len(y), 2))]) * 0
     x_train, x_valid, y_train, y_valid = train_test_split(
@@ -100,25 +94,23 @@ def multi_task_train(data_file,
     print(bs_masks)
 
     train_engine = MultiTaskTrainEngine(save_path,
-                                        batch_size=kwargs.pop('batch_size', 128),
-                                        infer_batch_size=kwargs.pop('infer_batch_size', 128),
-                                        epochs=kwargs.pop('epochs', 100),
-                                        learning_rate=kwargs.pop('learning_rate', 1e-3),
-                                        dropout=kwargs.pop('dropout', 0.0),
+                                        batch_size=kwargs.get('batch_size', 128),
+                                        infer_batch_size=kwargs.get('infer_batch_size', 128),
+                                        epochs=kwargs.get('epochs', 100),
+                                        steps_per_epoch=kwargs.get('steps_per_epoch'),
+                                        learning_rate=kwargs.get('learning_rate', 1e-3),
+                                        dropout=kwargs.get('dropout', 0.0),
                                         bs_masks=bs_masks,
                                         svd_weight=svd_weight,
-                                        loss_epsilon=kwargs.pop('loss_epsilon', 0.0))
+                                        loss_epsilon=kwargs.get('loss_epsilon', 0.0),
+                                        verbose=kwargs.pop('verbose', 1))
 
     train_process = Process(target=train_engine,
                             args=(
                                  (x_train, y_train),
-                                 (x_valid, y_valid)
-                            ),
-                            kwargs={
-                                'repeat_data_times': repeat_data_times,
-                                'pretrained_path': pretrained_path,
-                                'verbose': verbose
-                            })
+                                 (x_valid, y_valid),
+                                pretrained_path
+                            ))
 
     train_process.start()
     train_process.join()
@@ -130,7 +122,6 @@ def semi_train(data_file,
                pretrained_path=None,
                mask_mode=1,
                learn_svd=False,
-               repeat_data_times=1,
                **kwargs):
 
     tf.config.threading.set_inter_op_parallelism_threads(4)
@@ -140,9 +131,8 @@ def semi_train(data_file,
     else:
         svd_weight = None
 
-    verbose = kwargs.pop('verbose', 1)
     test_size = kwargs.pop('test_size', 0.1)
-    unlabel_x = x[len(y):]
+    x_unlabel = x[len(y):]
     x_train, x_valid, y_train, y_valid = train_test_split(
         x[:len(y)], y / 120, test_size=test_size)
 
@@ -152,56 +142,27 @@ def semi_train(data_file,
         bs_masks = masks2
     print(bs_masks)
 
-    train_engine = SemiTrainEngine(save_path,
-                                   batch_size=kwargs.pop('batch_size', 128),
-                                   infer_batch_size=kwargs.pop('infer_batch_size', 128),
-                                   unlabel_x=unlabel_x,
-                                   epochs=kwargs.pop('epochs', 100),
-                                   learning_rate=kwargs.pop('learning_rate', 1e-3),
-                                   dropout=kwargs.pop('dropout', 0.0),
+    train_engine = SemiTrainEngine(save_path, x_unlabel,
+                                   batch_size=kwargs.get('batch_size', 128),
+                                   infer_batch_size=kwargs.get('infer_batch_size', 128),
+                                   epochs=kwargs.get('epochs', 100),
+                                   steps_per_epoch=kwargs.get('steps_per_epoch'),
+                                   learning_rate=kwargs.get('learning_rate', 1e-3),
+                                   dropout=kwargs.get('dropout', 0.0),
                                    bs_masks=bs_masks,
                                    svd_weight=svd_weight,
-                                   loss_epsilon=kwargs.pop('loss_epsilon', 0.0))
+                                   loss_epsilon=kwargs.get('loss_epsilon', 0.0),
+                                   verbose=kwargs.pop('verbose', 1))
 
-    train_process1 = Process(target=train_engine,
-                             args=(
+    train_process = Process(target=train_engine,
+                            args=(
                                  (x_train, y_train),
-                                 (x_valid, y_valid)
-                             ),
-                             kwargs={
-                                 'repeat_data_times': repeat_data_times,
-                                 'pretrained_path': pretrained_path,
-                                 'verbose': verbose
-                             })
-    train_process1.start()
-    train_process1.join()
+                                 (x_valid, y_valid),
+                                pretrained_path
+                            ))
 
-    semi_train_x = np.vstack([x_train, unlabel_x])
-    semi_train_y = np.vstack([y_train, train_engine.pred_y])
-    pretrain_process1 = Process(target=train_engine,
-                                args=(
-                                    (semi_train_x, semi_train_y),
-                                    (x_valid, y_valid)
-                                ),
-                                kwargs={
-                                    'pretrained_path': save_path,
-                                    'verbose': verbose
-                                })
-    pretrain_process1.start()
-    pretrain_process1.join()
-
-    train_process2 = Process(target=train_engine,
-                             args=(
-                                 (x_train, y_train),
-                                 (x_valid, y_valid)
-                             ),
-                             kwargs={
-                                 'repeat_data_times': repeat_data_times,
-                                 'pretrained_path': save_path,
-                                 'verbose': verbose
-                             })
-    train_process2.start()
-    train_process2.join()
+    train_process.start()
+    train_process.join()
 
 
 def test(data_file,
