@@ -205,21 +205,6 @@ def Residual(fn, res, dropout=0.0):
     return x
 
 
-def TimeReduction(x):
-    x = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
-    xs = []
-    for xi, filters in zip(tf.split(x, 4, axis=-2), [128, 48, 24, 8]):
-        xi = layers.TimeDistributed(layers.ZeroPadding1D(2))(xi)
-        xi = layers.TimeDistributed(layers.Conv1D(filters, 64))(xi)
-        xi = layers.TimeDistributed(layers.GlobalMaxPool1D())(xi)
-        xs.append(xi)
-
-    x = layers.Concatenate(-1)(xs)
-    x = layers.BatchNormalization()(x)
-    x = layers.Activation('relu')(x)
-    return x
-
-
 def SVD(x, units=256):
     x = layers.TimeDistributed(layers.Flatten())(x)
     x = layers.Masking()(x)
@@ -327,9 +312,10 @@ def build_model(input_shape,
 
     if multi_task:
         h = layers.Lambda(lambda x: x[:, 1:, :])(h)
-        svd_x = layers.Dense(embed_dim, name='mbs')(h)
+        h = layers.Dense(embed_dim, name='mbs')(h)
+        svd_x = layers.LayerNormalization()(h)
         mbs_model = tf.keras.Model(x, [y, svd_x])
-        model.save = types.MethodType(save, mbs_model)
+        mbs_model.save = types.MethodType(save, mbs_model)
         return model, mbs_model
 
     return model

@@ -151,12 +151,12 @@ class TrainEngine:
 
         return train_dataset, valid_dataset
 
-    def __call__(self,
-                 train_data,
-                 valid_data,
-                 repeat_data_times=1,
-                 pretrained_path=None,
-                 verbose=1):
+    def _train(self,
+               train_data,
+               valid_data,
+               repeat_data_times=1,
+               pretrained_path=None,
+               verbose=1):
 
         strategy = self._init_environ()
         x_train_shape = train_data[0].shape
@@ -196,6 +196,19 @@ class TrainEngine:
         model.load_weights(self.save_path)
         return model
 
+    def __call__(self,
+                 train_data,
+                 valid_data,
+                 repeat_data_times=1,
+                 pretrained_path=None,
+                 verbose=1):
+
+        train_data = self._shuffle_data(train_data)
+        return self._train(train_data, valid_data,
+                           repeat_data_times=repeat_data_times,
+                           pretrained_path=pretrained_path,
+                           verbose=verbose)
+
 
 class MultiTaskTrainEngine(TrainEngine):
     def __init__(self, save_path, **kwargs):
@@ -206,12 +219,12 @@ class MultiTaskTrainEngine(TrainEngine):
         assert svd_weight is not None
         self.augment = MaskBS(18, 4, kwargs.get('bs_masks'), svd_weight=svd_weight)
 
-    def __call__(self,
-                 train_data,
-                 valid_data,
-                 repeat_data_times=1,
-                 pretrained_path=None,
-                 verbose=1):
+    def _train(self,
+               train_data,
+               valid_data,
+               repeat_data_times=1,
+               pretrained_path=None,
+               verbose=1):
 
         strategy = self._init_environ()
         x_train_shape = train_data[0].shape
@@ -259,15 +272,15 @@ class SemiTrainEngine(TrainEngine):
         self.unlabel_x = unlabel_x
         self.pred_y = None
 
-    def __call__(self, train_data, valid_data,
-                 repeat_data_times=1,
-                 pretrained_path=None,
-                 verbose=1):
+    def _train(self, train_data, valid_data,
+               repeat_data_times=1,
+               pretrained_path=None,
+               verbose=1):
 
-        model = super(SemiTrainEngine, self).__call__(train_data, valid_data,
-                                                      repeat_data_times=repeat_data_times,
-                                                      pretrained_path=pretrained_path,
-                                                      verbose=verbose)
+        model = super(SemiTrainEngine, self)._train(train_data, valid_data,
+                                                    repeat_data_times=repeat_data_times,
+                                                    pretrained_path=pretrained_path,
+                                                    verbose=verbose)
 
         self.pred_y = model.predict(self.unlabel_x, batch_size=self.infer_batch_size)
         self.checkpoint.model = None
