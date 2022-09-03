@@ -204,7 +204,7 @@ class MultiTaskTrainEngine(TrainEngine):
 
         svd_weight = kwargs.get('svd_weight')
         assert svd_weight is not None
-        self.augment = MaskBS(18, 4, bs_masks, svd_weight=svd_weight)
+        self.augment = MaskBS(18, 4, kwargs.get('bs_masks'), svd_weight=svd_weight)
 
     def __call__(self,
                  train_data,
