@@ -201,8 +201,8 @@ class TrainEngine:
         model.load_weights(self.save_path)
         return model
 
-    def __call__(self, *args, **kwargs):
-        return self._train(*args, **kwargs)
+    def __call__(self, train_data, valid_data, pretrained_path=None):
+        return self._train(train_data, valid_data, pretrained_path)
 
 
 class MultiTaskTrainEngine(TrainEngine):
