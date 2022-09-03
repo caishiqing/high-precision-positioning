@@ -45,7 +45,7 @@ class MaskBS(object):
             is_unlabel = tf.reduce_all(tf.less_equal(y, 0))
             hx = tf.keras.backend.batch_flatten(x * (1 - mask))
             h = tf.matmul(hx, self.svd_weight)
-            #h = tf.cond(is_unlabel, lambda: h, lambda: h * 0)
+            h = tf.cond(is_unlabel, lambda: h, lambda: h * 0)
             h *= 0
             return mx, (y, h)
 

@@ -87,13 +87,14 @@ def multi_task_train(data_file,
 
     verbose = kwargs.pop('verbose', 1)
     test_size = kwargs.pop('test_size', 0.1)
+    y = np.vstack([y, np.zeros((len(x)-len(y), 2))])
     x_train, x_valid, y_train, y_valid = train_test_split(
-        x[:len(y)], y / 120, test_size=test_size)
+        x, y / 120, test_size=test_size)
 
-    x_unlabel = x[len(y):]
-    y_unlabel = np.zeros((len(x)-len(y), 2), dtype=np.float32)
-    x_train = np.vstack([x_train, x_unlabel])
-    y_train = np.vstack([y_train, y_unlabel])
+    # x_unlabel = x[len(y):]
+    # y_unlabel = np.zeros((len(x)-len(y), 2), dtype=np.float32)
+    # x_train = np.vstack([x_train, x_unlabel])
+    # y_train = np.vstack([y_train, y_unlabel])
     del x, y
 
     if mask_mode == 1:
