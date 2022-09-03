@@ -45,7 +45,8 @@ class MaskBS(object):
             is_unlabel = tf.reduce_all(tf.less_equal(y, 0))
             hx = tf.keras.backend.batch_flatten(x * (1 - mask))
             h = tf.matmul(hx, self.svd_weight)
-            h = tf.cond(is_unlabel, lambda: h, lambda: h * 0)
+            #h = tf.cond(is_unlabel, lambda: h, lambda: h * 0)
+            h *= 0
             return mx, (y, h)
 
         return mx, y
@@ -148,7 +149,7 @@ class TrainEngine:
         valid_dataset = tf.data.Dataset.from_tensor_slices(
             valid_data).map(self.augment, autotune).batch(valid_data[0].shape[0])
         valid_dataset = list(valid_dataset)[0]
-        print(valid_dataset[1])
+
         return train_dataset, valid_dataset
 
     def __call__(self,
