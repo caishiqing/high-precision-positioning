@@ -124,6 +124,7 @@ def semi_train(data_file,
                learn_svd=False,
                **kwargs):
 
+    os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     tf.config.threading.set_inter_op_parallelism_threads(4)
     x, y = load_data(data_file, label_file)
     if learn_svd:
@@ -142,17 +143,17 @@ def semi_train(data_file,
         bs_masks = masks2
     print(bs_masks)
 
-    train_engine = TrainEngine(save_path,  # x_unlabel,
-                               batch_size=kwargs.get('batch_size', 128),
-                               infer_batch_size=kwargs.get('infer_batch_size', 128),
-                               epochs=kwargs.get('epochs', 100),
-                               steps_per_epoch=kwargs.get('steps_per_epoch'),
-                               learning_rate=kwargs.get('learning_rate', 1e-3),
-                               dropout=kwargs.get('dropout', 0.0),
-                               bs_masks=bs_masks,
-                               svd_weight=svd_weight,
-                               loss_epsilon=kwargs.get('loss_epsilon', 0.0),
-                               verbose=kwargs.pop('verbose', 1))
+    train_engine = SemiTrainEngine(save_path, x_unlabel,
+                                   batch_size=kwargs.get('batch_size', 128),
+                                   infer_batch_size=kwargs.get('infer_batch_size', 128),
+                                   epochs=kwargs.get('epochs', 100),
+                                   steps_per_epoch=kwargs.get('steps_per_epoch'),
+                                   learning_rate=kwargs.get('learning_rate', 1e-3),
+                                   dropout=kwargs.get('dropout', 0.0),
+                                   bs_masks=bs_masks,
+                                   svd_weight=svd_weight,
+                                   loss_epsilon=kwargs.get('loss_epsilon', 0.0),
+                                   verbose=kwargs.pop('verbose', 1))
 
     train_process = Process(target=train_engine,
                             args=(
