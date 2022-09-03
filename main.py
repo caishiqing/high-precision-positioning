@@ -142,7 +142,7 @@ def semi_train(data_file,
         bs_masks = masks2
     print(bs_masks)
 
-    train_engine = TrainEngine(save_path, x_unlabel,
+    train_engine = TrainEngine(save_path,  # x_unlabel,
                                batch_size=kwargs.get('batch_size', 128),
                                infer_batch_size=kwargs.get('infer_batch_size', 128),
                                epochs=kwargs.get('epochs', 100),
