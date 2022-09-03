@@ -205,8 +205,8 @@ class TrainEngine:
         model.load_weights(self.save_path)
         return model
 
-    def __call__(self, train_data, valid_data, pretrained_path=None):
-        return self._train(train_data, valid_data, pretrained_path)
+    def __call__(self, *args, **kwargs):
+        return self._train(*args, **kwargs)
 
 
 class MultiTaskTrainEngine(TrainEngine):
@@ -266,11 +266,76 @@ class SemiTrainEngine(TrainEngine):
     def __init__(self, save_path, x_unlabel, **kwargs):
         super(SemiTrainEngine, self).__init__(save_path, **kwargs)
         self.x_unlabel = x_unlabel
-        self.y_unlabel = None
 
-    def __call__(self, *args, **kwargs):
-        model = super(SemiTrainEngine, self)._train(*args, **kwargs)
-        self.y_unlabel = model.predict(self.x_unlabel, batch_size=self.infer_batch_size)
+    # def __call__(self, *args, **kwargs):
+    #     model = super(SemiTrainEngine, self)._train(*args, **kwargs)
+    #     self.y_unlabel = model.predict(self.x_unlabel, batch_size=self.infer_batch_size)
+
+    def _train(self,
+               train_data,
+               valid_data,
+               pretrained_path=None):
+
+        x_train, y_train = train_data
+        strategy = self._get_strategy()
+        x_train_shape = train_data[0].shape
+        train_dataset = self._prepare_train_dataset(train_data)
+        valid_dataset = self._prepare_valid_dataset(valid_data)
+
+        with strategy.scope():
+            warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
+            optimizer = AdamWarmup(warmup_steps=warmup_steps,
+                                   decay_steps=decay_steps,
+                                   initial_learning_rate=self.learning_rate)
+
+            model = build_model(x_train_shape[1:], 2, dropout=self.dropout)
+            svd_layer = model.get_layer('svd')
+            if pretrained_path is not None:
+                print("Load pretrained weights from {}".format(pretrained_path))
+                model.load_weights(pretrained_path)
+            if self.svd_weight is not None:
+                print('Load svd weight!')
+                svd_layer.set_weights([self.svd_weight])
+
+            svd_layer.trainable = False
+            model.compile(optimizer=optimizer,
+                          loss=clip_loss(tf.keras.losses.mae,
+                                         self.loss_epsilon))
+
+            model.summary()
+            model.fit(x=train_dataset,
+                      epochs=self.epochs,
+                      steps_per_epoch=self.steps_per_epoch,
+                      validation_data=valid_dataset,
+                      validation_batch_size=self.infer_batch_size,
+                      callbacks=[self.checkpoint],
+                      verbose=self.verbose)
+            print(self.checkpoint.best)
+            model.load_weights(self.save_path)
+
+            y_unlabel = model.predict(self.x_unlabel, batch_size=self.infer_batch_size)
+            train_dataset = self._prepare_train_dataset((np.vstack([x_train, self.x_unlabel]),
+                                                         np.vstack([y_train, y_unlabel])))
+            model.fit(x=train_dataset,
+                      epochs=self.epochs,
+                      steps_per_epoch=self.steps_per_epoch,
+                      validation_data=valid_dataset,
+                      validation_batch_size=self.infer_batch_size,
+                      callbacks=[self.checkpoint],
+                      verbose=self.verbose)
+            print(self.checkpoint.best)
+            model.load_weights(self.save_path)
+
+            train_dataset = self._prepare_train_dataset(train_data)
+            model.fit(x=train_dataset,
+                      epochs=self.epochs,
+                      steps_per_epoch=self.steps_per_epoch,
+                      validation_data=valid_dataset,
+                      validation_batch_size=self.infer_batch_size,
+                      callbacks=[self.checkpoint],
+                      verbose=self.verbose)
+            print(self.checkpoint.best)
+            model.load_weights(self.save_path)
 
 
 if __name__ == '__main__':
