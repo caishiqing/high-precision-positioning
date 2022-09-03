@@ -110,17 +110,20 @@ class TrainEngine:
                                                              mode='min',
                                                              monitor=monitor)
 
+    def _get_strategy(self):
         # Build distribute strategy on gpu or tpu
         try:
             tpu = tf.distribute.cluster_resolver.TPUClusterResolver()
             print('Running on TPU ', tpu.master())
             tf.config.experimental_connect_to_cluster(tpu)
             tf.tpu.experimental.initialize_tpu_system(tpu)
-            self.strategy = tf.distribute.experimental.TPUStrategy(tpu)
+            strategy = tf.distribute.experimental.TPUStrategy(tpu)
             self.drop_remainder = True
         except:
             print("Runing on gpu or cpu")
-            self.strategy = tf.distribute.get_strategy()
+            strategy = tf.distribute.get_strategy()
+
+        return strategy
 
     @staticmethod
     def _shuffle_data(x, y):
@@ -164,11 +167,12 @@ class TrainEngine:
                valid_data,
                pretrained_path=None):
 
+        strategy = self._get_strategy()
         x_train_shape = train_data[0].shape
         train_dataset = self._prepare_train_dataset(train_data)
         valid_dataset = self._prepare_valid_dataset(valid_data)
 
-        with self.strategy.scope():
+        with strategy.scope():
             warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
             optimizer = AdamWarmup(warmup_steps=warmup_steps,
                                    decay_steps=decay_steps,
@@ -219,7 +223,7 @@ class MultiTaskTrainEngine(TrainEngine):
                valid_data,
                pretrained_path=None):
 
-        strategy = self._init_environ()
+        strategy = self._get_strategy()
         x_train_shape = train_data[0].shape
         train_dataset, valid_dataset = self._prepare_dataset(train_data, valid_data)
 
@@ -269,12 +273,13 @@ class SemiTrainEngine(TrainEngine):
                valid_data,
                pretrained_path=None):
 
+        strategy = self._get_strategy()
         x_train, y_train = train_data
         x_train_shape = x_train.shape
         train_dataset = self._prepare_train_dataset(train_data)
         valid_dataset = self._prepare_valid_dataset(valid_data)
 
-        with self.strategy.scope():
+        with strategy.scope():
             warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
             optimizer = AdamWarmup(warmup_steps=warmup_steps,
                                    decay_steps=decay_steps,
