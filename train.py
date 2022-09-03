@@ -203,7 +203,7 @@ class TrainEngine:
                  pretrained_path=None,
                  verbose=1):
 
-        train_data = self._shuffle_data(train_data)
+        train_data = self._shuffle_data(*train_data)
         return self._train(train_data, valid_data,
                            repeat_data_times=repeat_data_times,
                            pretrained_path=pretrained_path,
