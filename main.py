@@ -166,12 +166,13 @@ def semi_train(data_file,
     train_process.join()
 
     x_semi_train = np.vstack([x_train, train_engine.x_unlabel])
+    print(train_engine.y_unlabel)
     y_semi_train = np.vstack([y_train, train_engine.y_unlabel])
     train_process = Process(target=train_engine,
                             args=(
                                  (x_semi_train, y_semi_train),
                                  (x_valid, y_valid),
-                                 save_path
+                                save_path
                             ))
 
     train_process.start()
@@ -181,7 +182,7 @@ def semi_train(data_file,
                             args=(
                                  (x_train, y_train),
                                  (x_valid, y_valid),
-                                 save_path
+                                save_path
                             ))
 
     train_process.start()
