@@ -339,16 +339,34 @@ tf.keras.utils.get_custom_objects().update(
 )
 
 
-def Model_1(input_shape, output_shape, weights_path=None):
-    model_layer = build_model(input_shape, output_shape, norm_size=120)
-    if weights_path is not None:
-        model_layer.load_weights(weights_path)
-
+def build_multi_head_bs(model_layer, bs_masks, norm_size=None):
     model = tf.keras.Sequential()
-    model.add(layers.Input(input_shape))
+    model.add(layers.Input(model_layer.input_shape[1:]))
     model.add(MultiHeadBS(bs_masks, 18, 4)),
     model.add(MyTimeDistributed(model_layer, 18, 3))
     model.add(layers.GlobalAveragePooling1D())
+    if norm_size is not None:
+        model.add(layers.Lambda(lambda x: x * norm_size))
+    return model
+
+
+def ensemble(models):
+    x = layers.Input(shape=models[0].input_shape[1:])
+    ys = []
+    for i, model in enumerate(models):
+        ys.append(model(x))
+
+    y = layers.Average()(ys)
+    model = tf.keras.Model(x, y)
+    return model
+
+
+def Model_1(input_shape, output_shape, weights_path=None):
+    model_layer = build_model(input_shape, output_shape)
+    if weights_path is not None:
+        model_layer.load_weights(weights_path)
+
+    model = build_multi_head_bs(model_layer, bs_masks, 120)
     return model
 
 
