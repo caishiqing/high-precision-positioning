@@ -176,7 +176,7 @@ def infer_unlabel(data_file, label_file, model_path, result_file):
     assert len(x) > len(y)
     x_unlabel = x[len(y):]
     model = tf.keras.models.load_model(model_path)
-    y_unlabel = model.predict(x).transpose([1, 0])
+    y_unlabel = model.predict(x_unlabel).transpose([1, 0])
     np.save(result_file, y_unlabel)
 
 
