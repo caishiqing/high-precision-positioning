@@ -148,8 +148,6 @@ class SelfAttention(MultiHeadAttention):
         if mask is not None:
             attention_mask = tf.logical_and(mask[:, :, tf.newaxis],
                                             mask[:, tf.newaxis, :])
-            diag_mask = tf.linalg.diag(tf.ones_like(mask))
-            attention_mask = tf.logical_or(attention_mask, diag_mask)
         else:
             attention_mask = None
 
@@ -275,8 +273,7 @@ def build_model(input_shape,
                 num_heads=8,
                 num_attention_layers=6,
                 dropout=0.0,
-                norm_size=None,
-                multi_task=False):
+                norm_size=None):
 
     assert embed_dim % num_heads == 0
 
@@ -307,12 +304,6 @@ def build_model(input_shape,
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
     model = tf.keras.Model(x, y)
-    if multi_task:
-        h = layers.Lambda(lambda x: x[:, 1:, :])(h)
-        svd_x = layers.Dense(embed_dim, name='mbs')(h)
-        mbs_model = tf.keras.Model(x, [y, svd_x])
-        return model, mbs_model
-
     return model
 
 
