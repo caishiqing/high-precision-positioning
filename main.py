@@ -59,7 +59,7 @@ def train(data_file,
                                bs_masks=bs_masks,
                                svd_weight=svd_weight,
                                loss_epsilon=kwargs.get('loss_epsilon', 0.0),
-                               verbose=kwargs.pop('verbose', 1))
+                               verbose=kwargs.get('verbose', 1))
 
     train_process = Process(target=train_engine,
                             args=(
@@ -133,7 +133,7 @@ def train_kfold(data_file,
                                    bs_masks=bs_masks,
                                    svd_weight=svd_weight,
                                    loss_epsilon=kwargs.get('loss_epsilon', 0.0),
-                                   verbose=kwargs.pop('verbose', 1))
+                                   verbose=kwargs.get('verbose', 1))
 
         train_process = Process(target=train_engine,
                                 args=(
@@ -174,7 +174,7 @@ def multi_task_train(data_file,
     else:
         svd_weight = None
 
-    test_size = kwargs.pop('test_size', 0.1)
+    test_size = kwargs.get('test_size', 0.1)
     y = np.vstack([y, np.zeros((len(x)-len(y), 2))]) * 0
     x_train, x_valid, y_train, y_valid = train_test_split(
         x, y / 120, test_size=test_size)
@@ -197,7 +197,7 @@ def multi_task_train(data_file,
                                         bs_masks=bs_masks,
                                         svd_weight=svd_weight,
                                         loss_epsilon=kwargs.get('loss_epsilon', 0.0),
-                                        verbose=kwargs.pop('verbose', 1))
+                                        verbose=kwargs.get('verbose', 1))
 
     train_process = Process(target=train_engine,
                             args=(
@@ -226,7 +226,7 @@ def semi_train(data_file,
     else:
         svd_weight = None
 
-    test_size = kwargs.pop('test_size', 0.1)
+    test_size = kwargs.get('test_size', 0.1)
     x_unlabel = x[len(y):]
     x_train, x_valid, y_train, y_valid = train_test_split(
         x[:len(y)], y / 120, test_size=test_size)
@@ -247,7 +247,7 @@ def semi_train(data_file,
                                    bs_masks=bs_masks,
                                    svd_weight=svd_weight,
                                    loss_epsilon=kwargs.get('loss_epsilon', 0.0),
-                                   verbose=kwargs.pop('verbose', 1))
+                                   verbose=kwargs.get('verbose', 1))
 
     train_process = Process(target=train_engine,
                             args=(

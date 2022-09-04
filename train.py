@@ -105,7 +105,7 @@ class TrainEngine:
         self.autotune = tf.data.experimental.AUTOTUNE
         self.checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
                                                              save_best_only=True,
-                                                             save_weights_only=True,
+                                                             save_weights_only=False,
                                                              mode='min',
                                                              monitor=monitor)
 
