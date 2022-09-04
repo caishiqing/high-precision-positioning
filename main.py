@@ -18,7 +18,10 @@ multiprocessing.set_start_method('spawn', force=True)
 def train(data_file,
           label_file,
           save_path,
+          unlabel_data_file=None,
+          unlabel_pred_file=None,
           pretrained_path=None,
+          test_size=0.1,
           mask_mode=1,
           learn_svd=False,
           **kwargs):
@@ -26,21 +29,25 @@ def train(data_file,
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     tf.config.threading.set_inter_op_parallelism_threads(4)
 
+    if mask_mode == 1:
+        bs_masks = masks1
+    elif mask_mode == 2:
+        bs_masks = masks2
+    print(bs_masks)
+
     x, y = load_data(data_file, label_file)
     if learn_svd:
         svd_weight = TruncatedSVD(256).fit(x.reshape([len(x) * 72, -1])).components_.T
     else:
         svd_weight = None
 
-    test_size = kwargs.pop('test_size', 0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(
         x[:len(y)], y / 120, test_size=test_size)
 
-    if mask_mode == 1:
-        bs_masks = masks1
-    elif mask_mode == 2:
-        bs_masks = masks2
-    print(bs_masks)
+    if unlabel_data_file is not None and unlabel_pred_file is not None:
+        x_unlabel, y_unlabel = load_data(unlabel_data_file, unlabel_pred_file)
+        x_train = np.vstack([x_train, x_unlabel])
+        y_train = np.vstack([y_train, y_unlabel / 120])
 
     train_engine = TrainEngine(save_path,
                                batch_size=kwargs.get('batch_size', 128),
@@ -72,6 +79,8 @@ def train(data_file,
 def train_kfold(data_file,
                 label_file,
                 save_path,
+                unlabel_data_file=None,
+                unlabel_pred_file=None,
                 kfold=5,
                 pretrained_path=None,
                 mask_mode=1,
@@ -93,6 +102,11 @@ def train_kfold(data_file,
     else:
         svd_weight = None
 
+    if unlabel_data_file is not None and unlabel_pred_file is not None:
+        x_unlabel, y_unlabel = load_data(unlabel_data_file, unlabel_pred_file)
+    else:
+        x_unlabel, y_unlabel = None, None
+
     df = pd.DataFrame()
     df['ids'] = list(range(y))
     df['kfold'] = 0
@@ -107,6 +121,10 @@ def train_kfold(data_file,
         y_train = y[train_ids] / 120
         x_valid = x[valid_ids]
         y_valid = y[valid_ids] / 120
+
+        if x_unlabel is not None and y_unlabel is not None:
+            x_train = np.vstack([x_train, x_unlabel])
+            y_train = np.vstack([y_train, y_unlabel / 120])
 
         model_path = '{}_{}.h5'.format(save_path.split('.')[0], k)
         train_engine = TrainEngine(model_path,
@@ -259,6 +277,17 @@ def test(data_file,
 
     if result_file is not None:
         np.save(result_file, pred.transpose((1, 0)))
+
+
+def infer_unlabel(data_file, label_file, model_path,
+                  result_data_file, result_label_file):
+    x, y = load_data(data_file, label_file)
+    assert len(x) > len(y)
+    x_unlabel = x[len(y):]
+    model = tf.keras.models.load_model(model_path)
+    y_unlabel = model.predict(x)
+    np.save(result_data_file, x_unlabel)
+    np.save(result_label_file, y_unlabel)
 
 
 if __name__ == '__main__':
