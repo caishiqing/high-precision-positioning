@@ -71,10 +71,6 @@ def train(data_file,
     train_process.start()
     train_process.join()
 
-    model = tf.keras.models.load_model(save_path)
-    model = build_multi_head_bs(model, bs_masks, 120)
-    model.save(save_path)
-
 
 def train_kfold(data_file,
                 label_file,

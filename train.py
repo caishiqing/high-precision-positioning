@@ -1,4 +1,3 @@
-from operator import is_
 from modelDesign_1 import build_model
 from optimizer import AdamWarmup
 import tensorflow as tf
@@ -106,7 +105,7 @@ class TrainEngine:
         self.autotune = tf.data.experimental.AUTOTUNE
         self.checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
                                                              save_best_only=True,
-                                                             save_weights_only=False,
+                                                             save_weights_only=True,
                                                              mode='min',
                                                              monitor=monitor)
 

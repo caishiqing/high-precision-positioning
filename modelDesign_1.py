@@ -1,7 +1,6 @@
 from tensorflow.keras import layers
 import tensorflow as tf
 import numpy as np
-import types
 
 
 bs_masks = [
@@ -308,24 +307,14 @@ def build_model(input_shape,
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
     model = tf.keras.Model(x, y)
-    model.save = types.MethodType(save, model)
-
     if multi_task:
         h = layers.Lambda(lambda x: x[:, 1:, :])(h)
         svd_x = layers.Dense(embed_dim, name='mbs')(h)
         mbs_model = tf.keras.Model(x, [y, svd_x])
-        mbs_model.save = types.MethodType(save, mbs_model)
         return model, mbs_model
 
     return model
 
-
-def save(cls, filepath, overwrite=True, **kwargs):
-    """ save model without optimizer states """
-    kwargs['include_optimizer'] = False
-    tf.keras.models.save_model(cls, filepath,
-                               overwrite=overwrite,
-                               **kwargs)
 
 
 tf.keras.utils.get_custom_objects().update(
