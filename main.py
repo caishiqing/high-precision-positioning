@@ -108,7 +108,7 @@ def train_kfold(data_file,
         x_unlabel, y_unlabel = None, None
 
     df = pd.DataFrame()
-    df['ids'] = list(range(y))
+    df['ids'] = list(range(len(y)))
     df['kfold'] = 0
     kf = KFold(n_splits=kfold, shuffle=True)
     for k, (_, v) in enumerate(kf.split(df)):
