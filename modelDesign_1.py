@@ -176,6 +176,8 @@ class AntennaEmbedding(layers.Layer):
     def call(self, x, mask=None):
         cls_embed = tf.tile(self.embeddings[tf.newaxis, :1, :], [tf.shape(x)[0], 1, 1])
         ant_embed = self.embeddings[tf.newaxis, 1:, :]
+        if mask is not None:
+            ant_embed *= tf.cast(mask, ant_embed.dtype)[:, :, tf.newaxis]
 
         x += ant_embed
         x = tf.concat([cls_embed, x], axis=1)
@@ -305,7 +307,6 @@ def build_model(input_shape,
 
     model = tf.keras.Model(x, y)
     return model
-
 
 
 tf.keras.utils.get_custom_objects().update(

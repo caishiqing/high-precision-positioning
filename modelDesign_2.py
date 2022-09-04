@@ -205,21 +205,6 @@ def Residual(fn, res, dropout=0.0):
     return x
 
 
-def TimeReduction(x):
-    x = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
-    xs = []
-    for xi, filters in zip(tf.split(x, 4, axis=-2), [128, 48, 24, 8]):
-        xi = layers.TimeDistributed(layers.ZeroPadding1D(2))(xi)
-        xi = layers.TimeDistributed(layers.Conv1D(filters, 64))(xi)
-        xi = layers.TimeDistributed(layers.GlobalMaxPool1D())(xi)
-        xs.append(xi)
-
-    x = layers.Concatenate(-1)(xs)
-    x = layers.BatchNormalization()(x)
-    x = layers.Activation('relu')(x)
-    return x
-
-
 def SVD(x, units=256):
     x = layers.TimeDistributed(layers.Flatten())(x)
     x = layers.Masking()(x)
@@ -316,22 +301,13 @@ def build_model(input_shape,
         )
         h = layers.LayerNormalization()(h)
 
-    h = layers.Lambda(lambda x: x[:, 0, :])(h)
-    y = layers.Dense(output_shape)(h)
+    cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
+    y = layers.Dense(output_shape, name='pos')(cls_h)
     if norm_size is not None:
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
     model = tf.keras.Model(x, y)
-    model.save = types.MethodType(save, model)
     return model
-
-
-def save(cls, filepath, overwrite=True, **kwargs):
-    """ save model without optimizer states """
-    kwargs['include_optimizer'] = False
-    tf.keras.models.save_model(cls, filepath,
-                               overwrite=overwrite,
-                               **kwargs)
 
 
 tf.keras.utils.get_custom_objects().update(
@@ -345,16 +321,34 @@ tf.keras.utils.get_custom_objects().update(
 )
 
 
-def Model_2(input_shape, output_shape, weights_path=None):
-    model_layer = build_model(input_shape, output_shape, norm_size=120)
-    if weights_path is not None:
-        model_layer.load_weights(weights_path)
-
+def build_multi_head_bs(model_layer, bs_masks, norm_size=None):
     model = tf.keras.Sequential()
-    model.add(layers.Input(input_shape))
+    model.add(layers.Input(model_layer.input_shape[1:]))
     model.add(MultiHeadBS(bs_masks, 18, 4)),
     model.add(MyTimeDistributed(model_layer, 18, 3))
     model.add(layers.GlobalAveragePooling1D())
+    if norm_size is not None:
+        model.add(layers.Lambda(lambda x: x * norm_size))
+    return model
+
+
+def ensemble(models):
+    x = layers.Input(shape=models[0].input_shape[1:])
+    ys = []
+    for i, model in enumerate(models):
+        ys.append(model(x))
+
+    y = layers.Average()(ys)
+    model = tf.keras.Model(x, y)
+    return model
+
+
+def Model_2(input_shape, output_shape, weights_path=None):
+    model_layer = build_model(input_shape, output_shape)
+    if weights_path is not None:
+        model_layer.load_weights(weights_path)
+
+    model = build_multi_head_bs(model_layer, bs_masks, 120)
     return model
 
 
