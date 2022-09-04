@@ -18,7 +18,6 @@ multiprocessing.set_start_method('spawn', force=True)
 def train(data_file,
           label_file,
           save_path,
-          unlabel_data_file=None,
           unlabel_pred_file=None,
           pretrained_path=None,
           test_size=0.1,
@@ -44,9 +43,9 @@ def train(data_file,
     x_train, x_valid, y_train, y_valid = train_test_split(
         x[:len(y)], y / 120, test_size=test_size)
 
-    if unlabel_data_file is not None and unlabel_pred_file is not None:
-        x_unlabel, y_unlabel = load_data(unlabel_data_file, unlabel_pred_file)
-        x_train = np.vstack([x_train, x_unlabel])
+    if unlabel_pred_file is not None:
+        y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
+        x_train = np.vstack([x_train, x[len(y):]])
         y_train = np.vstack([y_train, y_unlabel / 120])
 
     train_engine = TrainEngine(save_path,
