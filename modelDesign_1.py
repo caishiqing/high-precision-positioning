@@ -306,6 +306,8 @@ def build_model(input_shape,
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
     model = tf.keras.Model(x, y)
+    import types
+    model.save = types.MethodType(save_model, model)
     return model
 
 
@@ -318,6 +320,11 @@ tf.keras.utils.get_custom_objects().update(
         'MyTimeDistributed': MyTimeDistributed
     }
 )
+
+
+def save_model(cls, filepath, **kwargs):
+    kwargs["include_optimizer"] = False
+    tf.keras.models.save_model(cls, filepath, **kwargs)
 
 
 def build_multi_head_bs(model_layer, bs_masks, norm_size=None):
