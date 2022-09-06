@@ -301,13 +301,12 @@ def build_model(input_shape,
         h = layers.LayerNormalization()(h)
 
     cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
-    y = layers.Dense(output_shape, name='pos')(cls_h)
+    logits = layers.Dense(output_shape, name='pos')(cls_h)
+    y = layers.Lambda(lambda x: tf.clip_by_value(logits, 0.0, 1.0))
     if norm_size is not None:
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
     model = tf.keras.Model(x, y)
-    import types
-    model.save = types.MethodType(save_model, model)
     return model
 
 
@@ -320,11 +319,6 @@ tf.keras.utils.get_custom_objects().update(
         'MyTimeDistributed': MyTimeDistributed
     }
 )
-
-
-def save_model(cls, filepath, **kwargs):
-    kwargs["include_optimizer"] = False
-    tf.keras.models.save_model(cls, filepath, **kwargs)
 
 
 def build_multi_head_bs(model_layer, bs_masks, norm_size=None):

@@ -50,7 +50,7 @@ class WarmUpSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 class AdamWarmup(tf.keras.optimizers.Adam):
     def __init__(self, warmup_steps, decay_steps,
                  initial_learning_rate=1e-3,
-                 end_learning_rate=1e-6,
+                 end_learning_rate=1e-5,
                  **kwargs):
 
         decay_schedule_fn = tf.keras.optimizers.schedules.PolynomialDecay(

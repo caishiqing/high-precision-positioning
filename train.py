@@ -2,6 +2,7 @@ from modelDesign_1 import build_model
 from optimizer import AdamWarmup
 import tensorflow as tf
 import numpy as np
+import types
 
 
 def load_data(x_file, y_file):
@@ -67,11 +68,28 @@ def clip_loss(loss_fn, epsilon=0):
     return _loss_fn
 
 
-def mask_mae(y_true, y_pred):
-    mask = tf.reduce_any(tf.greater(y_true, 0), axis=-1)
-    y_true = tf.boolean_mask(y_true, mask)
-    y_pred = tf.boolean_mask(y_pred, mask)
-    return tf.keras.losses.mae(y_true, y_pred)
+def mask_mae(loss_fn):
+    def _loss_fn(y_true, y_pred):
+        mask = tf.reduce_any(tf.greater(y_true, 0), axis=-1)
+        y_true = tf.boolean_mask(y_true, mask)
+        y_pred = tf.boolean_mask(y_pred, mask)
+        return loss_fn(y_true, y_pred)
+
+    return _loss_fn
+
+
+def compile(cls, optimizer):
+    cls.optimizer = cls._get_optimizer(optimizer)
+    cls.pos_loss = mask_mae(tf.keras.losses.mae)
+
+
+def train_step(cls, data):
+    pass
+
+
+def save_model(cls, filepath, **kwargs):
+    kwargs["include_optimizer"] = False
+    tf.keras.models.save_model(cls, filepath, **kwargs)
 
 
 class TrainEngine:
@@ -178,7 +196,9 @@ class TrainEngine:
                                    initial_learning_rate=self.learning_rate)
 
             model = build_model(x_train_shape[1:], 2, dropout=self.dropout)
+            model.save = types.MethodType(save_model, model)
             svd_layer = model.get_layer('svd')
+
             if pretrained_path is not None:
                 print("Load pretrained weights from {}".format(pretrained_path))
                 model.load_weights(pretrained_path)
