@@ -78,6 +78,11 @@ def mask_mae(loss_fn):
     return _loss_fn
 
 
+class MaskBSLayer(tf.keras.layers.Layer):
+    def __init__(self):
+        pass
+
+
 def compile(cls, optimizer):
     cls.optimizer = cls._get_optimizer(optimizer)
     cls.pos_loss = mask_mae(tf.keras.losses.mae)
