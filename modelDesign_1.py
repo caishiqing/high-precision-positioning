@@ -302,7 +302,7 @@ def build_model(input_shape,
 
     cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
     logits = layers.Dense(output_shape)(cls_h)
-    y = layers.Lambda(lambda x: tf.clip_by_value(logits, 0.0, 1.0), name='pos')(logits)
+    y = layers.Lambda(lambda x: tf.clip_by_value(x, 0.0, 1.0), name='pos')(logits)
     if norm_size is not None:
         y = layers.Lambda(lambda x: x * norm_size)(y)
 
