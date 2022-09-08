@@ -310,7 +310,7 @@ def compare_loss(pos1, pos2):
 
     pos_loss = tf.nn.softplus(tf.reduce_logsumexp(pd))
     #cmp_loss = tf.nn.softplus(tf.reduce_logsumexp(pd) + tf.reduce_logsumexp(-nd))
-    return pos_loss, cmp_loss
+    return pos_loss
 
 
 class PosModel(tf.keras.Sequential):
@@ -318,9 +318,9 @@ class PosModel(tf.keras.Sequential):
         y = super(PosModel, self).call(x, training=training, **kwargs)
         if training:
             y1 = super(PosModel, self).call(x, training=True, **kwargs)
-            pos_loss, cmp_loss = compare_loss(y, y1)
+            pos_loss = compare_loss(y, y1)
             self.add_loss(pos_loss)
-            self.add_loss(cmp_loss)
+            # self.add_loss(cmp_loss)
 
         return y
 
