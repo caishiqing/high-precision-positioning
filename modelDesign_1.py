@@ -309,7 +309,7 @@ def compare_loss(pos1, pos2):
     nd = dist[tf.equal(label, 0)]
 
     pos_loss = tf.nn.softplus(tf.reduce_logsumexp(pd))
-    cmp_loss = tf.nn.softplus(tf.reduce_logsumexp(pd) + tf.reduce_logsumexp(-nd))
+    #cmp_loss = tf.nn.softplus(tf.reduce_logsumexp(pd) + tf.reduce_logsumexp(-nd))
     return pos_loss, cmp_loss
 
 
