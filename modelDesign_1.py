@@ -244,13 +244,13 @@ class MultiHeadBS(layers.Layer):
         if training is None:
             training = tf.keras.backend.learning_phase()
 
-        def _infer():
+        def _train():
             rand = tf.cast(tf.random.uniform(tf.shape(inputs)[:1]) * self.num_masks, tf.int32)
             mask = tf.gather(self.masks, rand)[:, :, tf.newaxis, tf.newaxis]
             x = inputs * mask
             return tf.expand_dims(x, 1)
 
-        def _train():
+        def _infer():
             # (batch, N, 72, 2, 256)
             masks = self.masks[tf.newaxis, :, :, tf.newaxis, tf.newaxis]
             return tf.expand_dims(inputs, 1) * masks
