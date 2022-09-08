@@ -313,7 +313,7 @@ def compare_loss(pos1, pos2):
     return pos_loss, cmp_loss
 
 
-def PosModel(tf.keras.Sequential):
+class PosModel(tf.keras.Sequential):
     def call(self, x, training=False, **kwargs):
         y = super(PosModel, self).call(x, training=training, **kwargs)
         if training:
