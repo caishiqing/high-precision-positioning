@@ -1,3 +1,4 @@
+from tensorflow.python.keras.utils import control_flow_util
 from tensorflow.keras import layers
 import tensorflow as tf
 import numpy as np
@@ -212,13 +213,17 @@ def SVD(x, units=256):
 
 
 class MultiHeadBS(layers.Layer):
-    def __init__(self, bs_masks,
+    def __init__(self,
+                 bs_masks=None,
                  num_bs=18,
                  num_antennas_per_bs=4,
                  **kwargs):
         super(MultiHeadBS, self).__init__(**kwargs)
+        if bs_masks is None:
+            bs_masks = [list(range(num_bs))]
+
         self.bs_masks = bs_masks
-        self.num_heads = len(bs_masks)
+        self.num_masks = len(bs_masks)
         self.num_bs = num_bs
         self.num_antennas_per_bs = num_antennas_per_bs
 
@@ -227,18 +232,31 @@ class MultiHeadBS(layers.Layer):
         assert self.num_bs * self.num_antennas_per_bs == S
         self.T = T
 
-        mask = np.zeros((self.num_heads, self.num_bs), dtype=np.float32)
+        masks = np.zeros((self.num_masks, self.num_bs), dtype=np.float32)
         for i, bs_mask in enumerate(self.bs_masks):
-            mask[i][bs_mask] = 1
+            masks[i][bs_mask] = 1
 
-        mask = tf.tile(tf.expand_dims(tf.identity(mask), -1), [1, 1, 4])
-        self.mask = tf.reshape(mask, [self.num_heads, -1])[
-            tf.newaxis, :, :, tf.newaxis, tf.newaxis]
+        masks = tf.tile(tf.expand_dims(tf.identity(masks), -1), [1, 1, 4])
+        self.masks = tf.reshape(masks, [self.num_masks, -1])
         self.build = True
 
-    def call(self, x):
-        x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
-        return x
+    def call(self, inputs, training=None):
+        if training is None:
+            training = tf.keras.backend.learning_phase()
+
+        def _infer():
+            rand = tf.cast(tf.random.uniform(tf.shape(inputs)[:1]) * self.num_masks, tf.int32)
+            mask = tf.gather(self.masks, rand)[:, :, tf.newaxis, tf.newaxis]
+            x = inputs * mask
+            return tf.expand_dims(x, 1)
+
+        def _train():
+            # (batch, N, 72, 2, 256)
+            masks = self.masks[tf.newaxis, :, :, tf.newaxis, tf.newaxis]
+            return tf.expand_dims(inputs, 1) * masks
+
+        output = control_flow_util.smart_cond(training, _train, _infer)
+        return output
 
     def get_config(self):
         config = super().get_config()
@@ -275,6 +293,7 @@ def build_model(input_shape,
                 num_heads=8,
                 num_attention_layers=6,
                 dropout=0.0,
+                bs_masks=None,
                 norm_size=None):
 
     assert embed_dim % num_heads == 0
@@ -302,11 +321,17 @@ def build_model(input_shape,
 
     cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
     y = layers.Dense(output_shape, activation='sigmoid', name='pos')(cls_h)
-    if norm_size is not None:
-        y = layers.Lambda(lambda x: x * norm_size)(y)
 
-    model = tf.keras.Model(x, y)
-    return model
+    model = tf.keras.Model(x, y, name='base')
+    model_wrapper = tf.keras.Sequential()
+    model_wrapper.add(layers.Input(input_shape))
+    model_wrapper.add(MultiHeadBS(bs_masks, 18, 4, name='mask')),
+    model_wrapper.add(MyTimeDistributed(model, 18, 3, name='wrapper'))
+    model_wrapper.add(layers.GlobalAveragePooling1D())
+    if norm_size is not None:
+        model_wrapper.add(layers.Lambda(lambda x: x * norm_size))
+
+    return model_wrapper
 
 
 tf.keras.utils.get_custom_objects().update(
