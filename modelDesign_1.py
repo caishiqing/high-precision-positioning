@@ -286,6 +286,31 @@ class MyTimeDistributed(layers.TimeDistributed):
         return config
 
 
+def compare_loss(pos1, pos2):
+    label = tf.eye(tf.shape(pos1)[0])
+    p1 = tf.expand_dims(pos1, 1)
+    p2 = tf.expand_dims(pos2, 0)
+    dist = tf.sqrt(tf.reduce_sum(tf.pow(p1 - p2, 2), -1))
+    pd = dist[tf.equal(label, 1)]
+    nd = dist[tf.equal(label, 0)]
+
+    pos_loss = tf.reduce_logsumexp(pd)
+    cmp_loss = tf.nn.softplus(tf.reduce_logsumexp(pd + 1e-3) + tf.reduce_logsumexp(-nd))
+    return pos_loss, cmp_loss
+
+
+def PosModel(tf.keras.Sequential):
+    def call(self, x, training=False, **kwargs):
+        y = super(PosModel, self).call(x, training=training, **kwargs)
+        if training:
+            y1 = super(PosModel, self).call(x, training=True, **kwargs)
+            pos_loss, cmp_loss = compare_loss(y, y1)
+            self.add_loss(pos_loss)
+            self.add_loss(cmp_loss)
+
+        return y
+
+
 def build_model(input_shape,
                 output_shape=2,
                 embed_dim=256,
@@ -323,7 +348,7 @@ def build_model(input_shape,
     y = layers.Dense(output_shape, activation='sigmoid', name='pos')(cls_h)
 
     model = tf.keras.Model(x, y, name='base')
-    model_wrapper = tf.keras.Sequential()
+    model_wrapper = PosModel()
     model_wrapper.add(layers.Input(input_shape))
     model_wrapper.add(MultiHeadBS(bs_masks, 18, 4, name='mask')),
     model_wrapper.add(MyTimeDistributed(model, 18, 3, name='wrapper'))

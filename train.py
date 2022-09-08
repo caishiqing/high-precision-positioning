@@ -65,19 +65,6 @@ def mask_loss(loss_fn):
     return _loss_fn
 
 
-def compare_loss(pos1, pos2):
-    label = tf.eye(tf.shape(pos1)[0])
-    p1 = tf.expand_dims(pos1, 1)
-    p2 = tf.expand_dims(pos2, 0)
-    dist = tf.sqrt(tf.reduce_sum(tf.pow(p1 - p2, 2), -1))
-    pd = dist[tf.equal(label, 1)]
-    nd = dist[tf.equal(label, 0)]
-
-    pos_loss = tf.reduce_logsumexp(pd)
-    cmp_loss = tf.nn.softplus(tf.reduce_logsumexp(pd + 1e-3) + tf.reduce_logsumexp(-nd))
-    return pos_loss, cmp_loss
-
-
 def compile(cls, optimizer, loss, **kwargs):
     loss = mask_loss(loss)
     cls.compile(optimizer, loss=loss, **kwargs)
@@ -216,9 +203,10 @@ class TrainEngine:
                 svd_layer.set_weights([self.svd_weight])
 
             svd_layer.trainable = False
-            model.compile(optimizer=optimizer,
-                          loss=clip_loss(tf.keras.losses.mae,
-                                         self.loss_epsilon))
+            # model.compile(optimizer=optimizer,
+            #               loss=clip_loss(tf.keras.losses.mae,
+            #                              self.loss_epsilon))
+            model.compile(optimizer=optimizer)
 
             model.summary()
             model.fit(x=train_dataset,
@@ -238,10 +226,31 @@ class TrainEngine:
 
 
 if __name__ == '__main__':
-    x = np.random.random((100, 16, 2, 4)).astype(np.float32)
-    y = np.random.random((100, 2)).astype(np.float32)
-    augment = MaskBS(8, 2, [[1, 2, 4], [0, 6, 7], [3, 4, 5]])
-    dataset = tf.data.Dataset.from_tensor_slices((x, y)).map(augment).shuffle(100).batch(4)
-    for x, (y, h) in dataset:
-        print(x, y, h)
-        pass
+    # x = np.random.random((100, 16, 2, 4)).astype(np.float32)
+    # y = np.random.random((100, 2)).astype(np.float32)
+    # augment = MaskBS(8, 2, [[1, 2, 4], [0, 6, 7], [3, 4, 5]])
+    # dataset = tf.data.Dataset.from_tensor_slices((x, y)).map(augment).shuffle(100).batch(4)
+    # for x, (y, h) in dataset:
+    #     print(x, y, h)
+    #     pass
+
+    class Model(tf.keras.Model):
+        def call(self, x, training=False, **kwargs):
+            y = super(Model, self).call(x, training=training, **kwargs)
+            if training:
+                y1 = super(Model, self).call(x, training=True, **kwargs)
+                self.add_loss(tf.reduce_mean(tf.keras.losses.mae(y, y1)))
+
+            return y
+
+    x = tf.keras.layers.Input((4,))
+    layers = tf.keras.Sequential([tf.keras.layers.Dropout(0.5), tf.keras.layers.Dense(1)])
+    y = layers(x)
+    # y1 = layers(x)
+    model = Model(x, y)
+    model.compile('adam', loss='mse')
+
+    xx = np.random.random((1000, 4))
+    yy = np.random.random((1000, 1))
+    dataset = tf.data.Dataset.from_tensor_slices((xx, yy)).batch(32)
+    model.fit(x=dataset, validation_data=dataset)
