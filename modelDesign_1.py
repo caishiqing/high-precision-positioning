@@ -304,12 +304,12 @@ def compare_loss(pos1, pos2):
     label = tf.eye(tf.shape(pos1)[0])
     p1 = tf.expand_dims(pos1, 1)
     p2 = tf.expand_dims(pos2, 0)
-    dist = tf.sqrt(tf.reduce_sum(tf.pow(p1 - p2, 2), -1))
+    dist = tf.math.log(tf.sqrt(tf.reduce_sum(tf.pow(p1 - p2, 2), -1)) + 1e-9)
     pd = dist[tf.equal(label, 1)]
     nd = dist[tf.equal(label, 0)]
 
-    pos_loss = tf.reduce_logsumexp(pd)
-    cmp_loss = tf.nn.softplus(tf.reduce_logsumexp(pd + 1e-3) + tf.reduce_logsumexp(-nd))
+    pos_loss = tf.nn.softplus(tf.reduce_logsumexp(pd))
+    cmp_loss = tf.nn.softplus(tf.reduce_logsumexp(pd) + tf.reduce_logsumexp(-nd))
     return pos_loss, cmp_loss
 
 
@@ -416,6 +416,12 @@ def Model_1(input_shape, output_shape, weights_path=None):
 
 
 if __name__ == '__main__':
-    model = Model_1((72, 2, 256), 2, 'modelSubmit_1.h5')
-    model.save('modelSubmit_1.h5')
-    model = tf.keras.models.load_model('modelSubmit_1.h5')
+    # model = Model_1((72, 2, 256), 2, 'modelSubmit_1.h5')
+    # model.save('modelSubmit_1.h5')
+    # model = tf.keras.models.load_model('modelSubmit_1.h5')
+
+    p1 = tf.random.uniform((256, 2))
+    p2 = p1 + 1e-5 * tf.random.uniform((256, 2))
+    pos_loss, cmp_loss = compare_loss(p1, p2)
+    print(pos_loss, cmp_loss)
+    pass

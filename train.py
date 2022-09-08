@@ -208,7 +208,7 @@ class TrainEngine:
             #                              self.loss_epsilon))
             model.compile(optimizer=optimizer)
 
-            model.summary()
+            model.get_layer('wrapper').layer.summary()
             model.fit(x=train_dataset,
                       epochs=self.epochs,
                       steps_per_epoch=self.steps_per_epoch,
