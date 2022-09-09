@@ -295,7 +295,7 @@ def compare_loss(pos1, pos2):
     nd = dist[tf.equal(label, 0)] + 1e-5
 
     loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_mean(1 / nd)))
-    return loss
+    return 1.0
 
 
 class PosModel(tf.keras.Sequential):
