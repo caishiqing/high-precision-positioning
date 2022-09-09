@@ -287,15 +287,15 @@ class MyTimeDistributed(layers.TimeDistributed):
 
 
 def compare_loss(pos1, pos2):
-    # label = tf.eye(tf.shape(pos1)[0])
-    # p1 = tf.expand_dims(pos1, 1)
-    # p2 = tf.expand_dims(pos2, 0)
-    # dist = tf.reduce_sum(tf.pow(p1 - p2, 2), -1)
-    # pd = tf.sqrt(dist[tf.equal(label, 1)])
-    # nd = dist[tf.equal(label, 0)] + 1e-5
+    label = tf.eye(tf.shape(pos1)[0])
+    p1 = tf.expand_dims(pos1, 1)
+    p2 = tf.expand_dims(pos2, 0)
+    dist = tf.reduce_sum(tf.pow(p1 - p2, 2), -1)
+    pd = tf.sqrt(dist[tf.equal(label, 1)])
+    nd = dist[tf.equal(label, 0)] + 1e-5
+    loss=tf.reduce_mean(pd)
 
     # loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_mean(1 / nd)))
-    loss = tf.reduce_mean(tf.keras.losses.mae(pos1, pos2))
     return loss
 
 
