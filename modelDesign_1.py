@@ -287,15 +287,16 @@ class MyTimeDistributed(layers.TimeDistributed):
 
 
 def compare_loss(pos1, pos2):
-    label = tf.eye(tf.shape(pos1)[0])
-    p1 = tf.expand_dims(pos1, 1)
-    p2 = tf.expand_dims(pos2, 0)
-    dist = tf.reduce_sum(tf.pow(p1 - p2, 2), -1)
-    pd = tf.sqrt(dist[tf.equal(label, 1)])
-    nd = dist[tf.equal(label, 0)] + 1e-5
+    # label = tf.eye(tf.shape(pos1)[0])
+    # p1 = tf.expand_dims(pos1, 1)
+    # p2 = tf.expand_dims(pos2, 0)
+    # dist = tf.reduce_sum(tf.pow(p1 - p2, 2), -1)
+    # pd = tf.sqrt(dist[tf.equal(label, 1)])
+    # nd = dist[tf.equal(label, 0)] + 1e-5
 
-    loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_mean(1 / nd)))
-    return 1.0
+    # loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_mean(1 / nd)))
+    loss = tf.reduce_mean(tf.keras.losses.mae(pos1, pos2))
+    return loss
 
 
 class PosModel(tf.keras.Sequential):
@@ -405,8 +406,8 @@ if __name__ == '__main__':
     # model.save('modelSubmit_1.h5')
     # model = tf.keras.models.load_model('modelSubmit_1.h5')
 
-    p1 = tf.random.uniform((256, 2))
-    p2 = p1 + 1e-5 * tf.random.uniform((256, 2))
-    pos_loss, cmp_loss = compare_loss(p1, p2)
-    print(pos_loss, cmp_loss)
+    p1 = tf.random.uniform((256, 2)) * 120
+    p2 = p1 + tf.random.normal((256, 2))
+    loss = compare_loss(p1, p2)
+    print(loss)
     pass
