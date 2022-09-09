@@ -41,12 +41,12 @@ def train(data_file,
         svd_weight = None
 
     x_train, x_valid, y_train, y_valid = train_test_split(
-        x[:len(y)], y / 120, test_size=test_size)
+        x[:len(y)], y, test_size=test_size)
 
     if unlabel_pred_file is not None:
         y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
         x_train = np.vstack([x_train, x[len(y):]])
-        y_train = np.vstack([y_train, y_unlabel / 120])
+        y_train = np.vstack([y_train, y_unlabel])
         del x, y
 
     train_engine = TrainEngine(save_path,
@@ -58,7 +58,6 @@ def train(data_file,
                                dropout=kwargs.get('dropout', 0.0),
                                bs_masks=bs_masks,
                                svd_weight=svd_weight,
-                               loss_epsilon=kwargs.get('loss_epsilon', 0.0),
                                verbose=kwargs.get('verbose', 1))
 
     train_process = Process(target=train_engine,
@@ -115,9 +114,9 @@ def train_kfold(data_file,
         train_ids = df[df['kfold'] != k]['ids']
         valid_ids = df[df['kfold'] == k]['ids']
         x_train = x[train_ids]
-        y_train = y[train_ids] / 120
+        y_train = y[train_ids]
         x_valid = x[valid_ids]
-        y_valid = y[valid_ids] / 120
+        y_valid = y[valid_ids]
 
         model_path = '{}_{}.h5'.format(save_path.split('.')[0], k)
         train_engine = TrainEngine(model_path,
@@ -129,7 +128,6 @@ def train_kfold(data_file,
                                    dropout=kwargs.get('dropout', 0.0),
                                    bs_masks=bs_masks,
                                    svd_weight=svd_weight,
-                                   loss_epsilon=kwargs.get('loss_epsilon', 0.0),
                                    verbose=kwargs.get('verbose', 1))
 
         train_process = Process(target=train_engine,
@@ -146,7 +144,6 @@ def train_kfold(data_file,
     for k in range(kfold):
         model_path = '{}_{}.h5'.format(save_path.split('.')[0], k)
         model = tf.keras.models.load_model(model_path, compile=False)
-        model = build_multi_head_bs(model, bs_masks, 120)
         models.append(model)
         os.remove(model_path)
 

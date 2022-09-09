@@ -333,7 +333,7 @@ def build_model(input_shape,
                 num_attention_layers=6,
                 dropout=0.0,
                 bs_masks=None,
-                norm_size=None):
+                norm_size=120):
 
     assert embed_dim % num_heads == 0
 
@@ -362,7 +362,7 @@ def build_model(input_shape,
     y = layers.Dense(output_shape, activation='sigmoid', name='pos')(cls_h)
 
     model = tf.keras.Model(x, y, name='base')
-    model_wrapper = PosModel()
+    model_wrapper = tf.keras.Sequential()
     model_wrapper.add(layers.Input(input_shape))
     model_wrapper.add(MultiHeadBS(bs_masks, 18, 4, name='mask')),
     model_wrapper.add(MyTimeDistributed(model, 18, 3, name='wrapper'))

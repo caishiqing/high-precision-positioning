@@ -79,16 +79,6 @@ def save_model(cls, filepath, **kwargs):
     tf.keras.models.save_model(cls, filepath, **kwargs)
 
 
-def build_train_model(model):
-    x = tf.keras.layers.Input(shape=model.input_shape[1:])
-    y = model(x)
-    y1 = model(x)
-    train_model = tf.keras.Model(x, y)
-    train_model.add_loss(compare_loss(y, y1))
-    train_model.save = types.MethodType(save_model, train_model)
-    return train_model
-
-
 class TrainEngine:
     def __init__(self,
                  save_path,
@@ -100,7 +90,6 @@ class TrainEngine:
                  dropout=0.0,
                  bs_masks=None,
                  svd_weight=None,
-                 loss_epsilon=0,
                  monitor='val_loss',
                  verbose=1):
 
@@ -114,7 +103,6 @@ class TrainEngine:
         self.drop_remainder = False
         self.bs_masks = bs_masks
         self.svd_weight = svd_weight
-        self.loss_epsilon = float(loss_epsilon)
         self.verbose = verbose
 
         self.autotune = tf.data.experimental.AUTOTUNE
@@ -203,10 +191,7 @@ class TrainEngine:
                 svd_layer.set_weights([self.svd_weight])
 
             svd_layer.trainable = False
-            # model.compile(optimizer=optimizer,
-            #               loss=clip_loss(tf.keras.losses.mae,
-            #                              self.loss_epsilon))
-            model.compile(optimizer=optimizer)
+            model.compile(optimizer=optimizer, loss=tf.keras.losses.mae)
 
             model.get_layer('wrapper').layer.summary()
             model.fit(x=train_dataset,
