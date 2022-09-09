@@ -196,16 +196,6 @@ class TrainEngine:
             svd_layer.trainable = False
             #model.compile(optimizer=optimizer, loss=tf.keras.losses.mae)
             model.compile(optimizer=optimizer)
-
-            from scipy.spatial.distance import cdist
-
-            y1 = model(valid_data[0][:256], training=True).numpy()
-            y2 = model(valid_data[0][:256], training=True).numpy()
-            dist = cdist(y1, y2)
-            p = np.diag(dist)
-            n = dist[np.where(np.eye(256) == 0)]
-            print(p.max(), n.min())
-
             model.get_layer('wrapper').layer.summary()
             model.fit(x=train_dataset,
                       epochs=self.epochs,
