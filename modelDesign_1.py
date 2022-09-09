@@ -293,7 +293,7 @@ def compare_loss(pos1, pos2):
     dist = tf.reduce_sum(tf.pow(p1 - p2, 2), -1)
     pd = tf.sqrt(dist[tf.equal(label, 1)])
     nd = dist[tf.equal(label, 0)] + 1e-5
-    loss=tf.reduce_mean(pd)
+    loss = tf.reduce_mean(dist)
 
     # loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_mean(1 / nd)))
     return loss
