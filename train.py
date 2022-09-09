@@ -199,7 +199,7 @@ class TrainEngine:
 
             y1 = model(valid_data[0][:256], training=True).numpy()
             y2 = model(valid_data[0][:256], training=True).numpy()
-            print(np.math.sqrt(np.math.pow(y1-y2, 2).sum(axis=-1)))
+            print(np.concatenate([y1, y2], 1))
 
             model.get_layer('wrapper').layer.summary()
             model.fit(x=train_dataset,
