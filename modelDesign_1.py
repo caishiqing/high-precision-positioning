@@ -304,13 +304,12 @@ def compare_loss(pos1, pos2):
     label = tf.eye(tf.shape(pos1)[0])
     p1 = tf.expand_dims(pos1, 1)
     p2 = tf.expand_dims(pos2, 0)
-    dist = tf.math.log(tf.sqrt(tf.reduce_sum(tf.pow(p1 - p2, 2), -1)) + 1e-9)
-    pd = dist[tf.equal(label, 1)]
-    nd = dist[tf.equal(label, 0)]
+    dist = tf.reduce_sum(tf.pow(p1 - p2, 2), -1)
+    pd = tf.sqrt(dist[tf.equal(label, 1)])
+    nd = dist[tf.equal(label, 0)] + 1e-5
 
-    pos_loss = tf.nn.softplus(tf.reduce_logsumexp(pd))
-    #cmp_loss = tf.nn.softplus(tf.reduce_logsumexp(pd) + tf.reduce_logsumexp(-nd))
-    return pos_loss
+    loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_mean(1 / nd)))
+    return loss
 
 
 class PosModel(tf.keras.Sequential):
@@ -318,9 +317,8 @@ class PosModel(tf.keras.Sequential):
         y = super(PosModel, self).call(x, training=training, **kwargs)
         if training:
             y1 = super(PosModel, self).call(x, training=True, **kwargs)
-            pos_loss = compare_loss(y, y1)
-            self.add_loss(pos_loss)
-            # self.add_loss(cmp_loss)
+            cmp_loss = compare_loss(y, y1)
+            self.add_loss(cmp_loss)
 
         return y
 
