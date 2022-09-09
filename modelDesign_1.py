@@ -291,9 +291,9 @@ def compare_loss(pos1, pos2):
     p1 = tf.expand_dims(pos1, 1)
     p2 = tf.expand_dims(pos2, 0)
     dist = tf.reduce_sum(tf.pow(p1 - p2, 2), -1)
-    pd = tf.sqrt(dist[tf.equal(label, 1)])
+    pd = tf.sqrt(dist[tf.equal(label, 1)] + 1e-9)
     nd = dist[tf.equal(label, 0)] + 1e-5
-    loss = tf.reduce_mean(dist[tf.equal(label, 1)])
+    loss = tf.reduce_mean(pd)
 
     # loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_mean(1 / nd)))
     return loss
