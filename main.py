@@ -23,6 +23,7 @@ def train(data_file,
           test_size=0.1,
           mask_mode=1,
           learn_svd=False,
+          regularize=False,
           **kwargs):
 
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
@@ -40,8 +41,12 @@ def train(data_file,
     else:
         svd_weight = None
 
-    x_train, x_valid, y_train, y_valid = train_test_split(
-        x[:len(y)], y, test_size=test_size)
+    if regularize:
+        y = np.vstack([y, np.zeros((len(x) - len(y), 2))])
+    else:
+        x = x[:len(y)]
+
+    x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
 
     if unlabel_pred_file is not None:
         y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
@@ -58,6 +63,7 @@ def train(data_file,
                                dropout=kwargs.get('dropout', 0.0),
                                bs_masks=bs_masks,
                                svd_weight=svd_weight,
+                               regularize=regularize,
                                verbose=kwargs.get('verbose', 1))
 
     train_process = Process(target=train_engine,

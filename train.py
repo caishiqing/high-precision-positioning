@@ -90,6 +90,7 @@ class TrainEngine:
                  dropout=0.0,
                  bs_masks=None,
                  svd_weight=None,
+                 regularize=False,
                  monitor='val_loss',
                  verbose=1):
 
@@ -103,6 +104,7 @@ class TrainEngine:
         self.drop_remainder = False
         self.bs_masks = bs_masks
         self.svd_weight = svd_weight
+        self.regularize = regularize
         self.verbose = verbose
 
         self.autotune = tf.data.experimental.AUTOTUNE
@@ -178,7 +180,8 @@ class TrainEngine:
 
             model = build_model(x_train_shape[1:], 2,
                                 dropout=self.dropout,
-                                bs_masks=self.bs_masks)
+                                bs_masks=self.bs_masks,
+                                regularize=self.regularize)
             model.save = types.MethodType(save_model, model)
             # svd_layer = model.get_layer('svd')
             svd_layer = model.get_layer('wrapper').layer.get_layer('svd')
@@ -191,7 +194,8 @@ class TrainEngine:
                 svd_layer.set_weights([self.svd_weight])
 
             svd_layer.trainable = False
-            model.compile(optimizer=optimizer, loss=tf.keras.losses.mae)
+            #model.compile(optimizer=optimizer, loss=tf.keras.losses.mae)
+            model.compile(optimizer=optimizer)
 
             model.get_layer('wrapper').layer.summary()
             model.fit(x=train_dataset,
