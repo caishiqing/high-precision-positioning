@@ -405,8 +405,10 @@ if __name__ == '__main__':
     # model.save('modelSubmit_1.h5')
     # model = tf.keras.models.load_model('modelSubmit_1.h5')
 
-    p1 = tf.random.uniform((256, 2)) * 120
-    p2 = p1 + tf.random.normal((256, 2))
-    loss = compare_loss(p1, p2)
+    x = tf.random.uniform([256*256]) * 120
+    argsort = tf.argsort(x)
+    p = tf.gather(x, argsort[:256])
+    n = tf.gather(x, argsort[256:]) + 1e-5
+    loss = tf.math.log1p(tf.reduce_mean(p) * (1 + tf.reduce_mean(1 / n)))
     print(loss)
     pass
