@@ -317,7 +317,7 @@ class PosModel(tf.keras.Sequential):
         x, y = data
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)
-            y_augm = tf.no_gradient(self(x, training=True))
+            y_augm = tf.stop_gradient(self(x, training=True))
             pos_loss = self.compiled_loss(y, y_pred)
             cmp_loss = compare_loss(y_pred, y_augm)
             loss = pos_loss + cmp_loss
