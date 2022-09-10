@@ -317,10 +317,10 @@ class PosModel(tf.keras.Sequential):
         x, y = data
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)
-            y_augm = self(x, training=True)
+            y_augm = tf.no_gradient(self(x, training=True))
             pos_loss = self.compiled_loss(y, y_pred)
             cmp_loss = compare_loss(y_pred, y_augm)
-            loss = 0.2 * pos_loss + cmp_loss
+            loss = pos_loss + cmp_loss
 
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
         return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss}
