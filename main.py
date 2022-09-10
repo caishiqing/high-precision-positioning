@@ -57,15 +57,15 @@ def train(data_file,
         del x, y
 
     train_engine = TrainEngine(save_path,
+                               bs_masks=bs_masks,
+                               svd_weight=svd_weight,
+                               regularize=regularize,
                                batch_size=kwargs.get('batch_size', 128),
                                infer_batch_size=kwargs.get('infer_batch_size', 128),
                                epochs=kwargs.get('epochs', 100),
                                steps_per_epoch=kwargs.get('steps_per_epoch'),
                                learning_rate=kwargs.get('learning_rate', 1e-3),
                                dropout=kwargs.get('dropout', 0.0),
-                               bs_masks=bs_masks,
-                               svd_weight=svd_weight,
-                               regularize=regularize,
                                monitor=kwargs.get('monitor', 'val_loss'),
                                verbose=kwargs.get('verbose', 1))
 
