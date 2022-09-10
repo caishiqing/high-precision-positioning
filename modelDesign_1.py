@@ -304,14 +304,26 @@ def compare_loss(pos1, pos2):
 
 
 class PosModel(tf.keras.Sequential):
-    def call(self, x, training=False, **kwargs):
-        y = super(PosModel, self).call(x, training=training, **kwargs)
-        if training:
-            y1 = super(PosModel, self).call(x, training=True, **kwargs)
-            cmp_loss = compare_loss(y, y1)
-            self.add_loss(cmp_loss)
+    # def call(self, x, training=False, **kwargs):
+    #     y = super(PosModel, self).call(x, training=training, **kwargs)
+    #     if training:
+    #         y1 = super(PosModel, self).call(x, training=True, **kwargs)
+    #         cmp_loss = compare_loss(y, y1)
+    #         self.add_loss(cmp_loss)
 
-        return y
+    #     return y
+
+    def train_step(self, data):
+        x, y = data
+        with tf.GradientTape() as tape:
+            y_pred = self(x, training=True)
+            y_augm = self(x, training=True)
+            pos_loss = self.compiled_loss(y, y_pred)
+            cmp_loss = compare_loss(y_pred, y_augm)
+            loss = pos_loss + cmp_loss
+
+        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+        return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss}
 
 
 def build_model(input_shape,

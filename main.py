@@ -66,6 +66,7 @@ def train(data_file,
                                bs_masks=bs_masks,
                                svd_weight=svd_weight,
                                regularize=regularize,
+                               monitor=kwargs.get('monitor', 'val_loss'),
                                verbose=kwargs.get('verbose', 1))
 
     train_process = Process(target=train_engine,

@@ -65,15 +65,6 @@ def mask_loss(loss_fn):
     return _loss_fn
 
 
-def compile(cls, optimizer, loss, **kwargs):
-    loss = mask_loss(loss)
-    cls.compile(optimizer, loss=loss, **kwargs)
-
-
-def train_step(cls, data):
-    pass
-
-
 def save_model(cls, filepath, **kwargs):
     kwargs["include_optimizer"] = False
     tf.keras.models.save_model(cls, filepath, **kwargs)
@@ -183,7 +174,6 @@ class TrainEngine:
                                 bs_masks=self.bs_masks,
                                 regularize=self.regularize)
             model.save = types.MethodType(save_model, model)
-            # svd_layer = model.get_layer('svd')
             svd_layer = model.get_layer('wrapper').layer.get_layer('svd')
 
             if pretrained_path is not None:
@@ -194,8 +184,7 @@ class TrainEngine:
                 svd_layer.set_weights([self.svd_weight])
 
             svd_layer.trainable = False
-            #model.compile(optimizer=optimizer, loss=tf.keras.losses.mae)
-            model.compile(optimizer=optimizer)
+            model.compile(optimizer=optimizer, loss=mask_loss(tf.keras.losses.mae))
             model.get_layer('wrapper').layer.summary()
             model.fit(x=train_dataset,
                       epochs=self.epochs,
