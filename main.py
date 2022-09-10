@@ -21,7 +21,7 @@ def train(data_file,
           unlabel_pred_file=None,
           pretrained_path=None,
           test_size=0.1,
-          mask_mode=1,
+          mask_mode=None,
           learn_svd=False,
           regularize=False,
           **kwargs):
@@ -29,7 +29,9 @@ def train(data_file,
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     tf.config.threading.set_inter_op_parallelism_threads(4)
 
-    if mask_mode == 1:
+    if mask_mode is None:
+        bs_masks = None
+    elif mask_mode == 1:
         bs_masks = masks1
     elif mask_mode == 2:
         bs_masks = masks2
