@@ -174,19 +174,14 @@ class TrainEngine:
                                 bs_masks=self.bs_masks,
                                 regularize=self.regularize)
             model.save = types.MethodType(save_model, model)
-            svd_layer = model.get_layer('wrapper').layer.get_layer('svd')
-
-            for w in model.weights:
-                print(w.name, w.shape)
 
             if pretrained_path is not None:
                 print("Load pretrained weights from {}".format(pretrained_path))
                 model.load_weights(pretrained_path)
             if self.svd_weight is not None:
                 print('Load svd weight!')
-                svd_layer.set_weights([self.svd_weight])
+                model.get_layer('wrapper').layer.get_layer('svd').set_weights([self.svd_weight])
 
-            svd_layer.trainable = False
             model.compile(optimizer=optimizer, loss=mask_loss(tf.keras.losses.mae))
             model.get_layer('wrapper').layer.summary()
             model.fit(x=train_dataset,

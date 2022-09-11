@@ -208,7 +208,7 @@ def Residual(fn, res, dropout=0.0):
 def SVD(x, units=256):
     x = layers.TimeDistributed(layers.Flatten())(x)
     x = layers.Masking()(x)
-    x = layers.Dense(units, use_bias=False, name='svd')(x)
+    x = layers.Dense(units, use_bias=False, trainable=False, name='svd')(x)
     return x
 
 
