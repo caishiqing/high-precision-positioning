@@ -291,11 +291,6 @@ def compare_loss(pos1, pos2):
     label = tf.eye(tf.shape(pos1)[0])
     p1 = tf.expand_dims(pos1, 1)
     p2 = tf.expand_dims(pos2, 0)
-    # dist = tf.reduce_sum(tf.pow(p1 - p2, 2), -1)
-    # pd = tf.sqrt(dist[tf.equal(label, 1)] + epsilon)
-    # nd = dist[tf.equal(label, 0)] + epsilon
-
-    # loss = tf.math.log1p(tf.reduce_mean(pd) * (1 + tf.reduce_mean(1 / nd)))
 
     dist = tf.math.sqrt(tf.reduce_sum(tf.pow(p1 - p2, 2), -1) + epsilon) + epsilon
     logits = tf.math.log(1 / dist + epsilon)
@@ -311,7 +306,7 @@ class PosModel(tf.keras.Sequential):
             y_augm = self(x, training=True)
             pos_loss = self.compiled_loss(y, y_pred)
             cmp_loss = compare_loss(y_pred, y_augm)
-            loss = 0.5 * pos_loss + cmp_loss
+            loss = pos_loss + cmp_loss
 
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
         return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss}
