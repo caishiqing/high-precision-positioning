@@ -176,6 +176,9 @@ class TrainEngine:
             model.save = types.MethodType(save_model, model)
             svd_layer = model.get_layer('wrapper').layer.get_layer('svd')
 
+            for w in model.weights:
+                print(w.name, w.shape)
+
             if pretrained_path is not None:
                 print("Load pretrained weights from {}".format(pretrained_path))
                 model.load_weights(pretrained_path)
