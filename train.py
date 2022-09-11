@@ -182,7 +182,8 @@ class TrainEngine:
                 print('Load svd weight!')
                 model.get_layer('wrapper').layer.get_layer('svd').set_weights([self.svd_weight])
 
-            model.compile(optimizer=optimizer, loss=mask_loss(tf.keras.losses.mae))
+            loss = mask_loss(tf.keras.losses.mae) if valid_data is not None else None
+            model.compile(optimizer=optimizer, loss=loss)
             model.get_layer('wrapper').layer.summary()
             model.fit(x=train_dataset,
                       epochs=self.epochs,
