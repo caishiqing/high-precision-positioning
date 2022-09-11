@@ -20,7 +20,7 @@ def train(data_file,
           save_path,
           unlabel_pred_file=None,
           pretrained_path=None,
-          test_size=0.1,
+          test_size=None,
           mask_mode=None,
           learn_svd=False,
           regularize=False,
@@ -48,7 +48,13 @@ def train(data_file,
     else:
         x = x[:len(y)]
 
-    x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
+    if test_size is not None:
+        x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
+        train_data = (x_train, y_train)
+        valid_data = (x_valid, y_valid)
+    else:
+        train_data = (x, y)
+        valid_data = None
 
     if unlabel_pred_file is not None:
         y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
@@ -70,11 +76,7 @@ def train(data_file,
                                verbose=kwargs.get('verbose', 1))
 
     train_process = Process(target=train_engine,
-                            args=(
-                                 (x_train, y_train),
-                                 (x_valid, y_valid),
-                                pretrained_path
-                            ))
+                            args=(train_data, valid_data, pretrained_path))
 
     train_process.start()
     train_process.join()
