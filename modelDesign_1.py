@@ -320,7 +320,7 @@ class PosModel(tf.keras.Sequential):
             y_augm = self(x, training=True)
             pos_loss = self.compiled_loss(y, y_pred)
             cmp_loss = compare_loss(y_pred, y_augm)
-            loss = pos_loss + cmp_loss
+            loss = 0.5 * pos_loss + cmp_loss
 
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
         return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss}
@@ -331,7 +331,7 @@ def build_model(input_shape,
                 embed_dim=256,
                 hidden_dim=512,
                 num_heads=8,
-                num_attention_layers=6,
+                num_attention_layers=7,
                 dropout=0.0,
                 bs_masks=None,
                 norm_size=120,
