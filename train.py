@@ -182,7 +182,13 @@ class TrainEngine:
                 print('Load svd weight!')
                 model.get_layer('wrapper').layer.get_layer('svd').set_weights([self.svd_weight])
 
-            loss = mask_loss(tf.keras.losses.mae) if valid_data is not None else None
+            if valid_data is None:
+                loss = None
+            elif self.regularize:
+                loss = mask_loss(tf.keras.losses.mae)
+            else:
+                loss = tf.keras.losses.mae
+
             model.compile(optimizer=optimizer, loss=loss)
             model.get_layer('wrapper').layer.summary()
             model.fit(x=train_dataset,
@@ -193,7 +199,7 @@ class TrainEngine:
                       callbacks=[self.checkpoint],
                       verbose=self.verbose)
 
-        print(self.checkpoint.best)
+        print('Best: ', self.checkpoint.best)
         model.load_weights(self.save_path)
         return model
 

@@ -35,7 +35,7 @@ def train(data_file,
         bs_masks = masks1
     elif mask_mode == 2:
         bs_masks = masks2
-    print(bs_masks)
+    print('BS Masks: ', bs_masks)
 
     x, y = load_data(data_file, label_file)
     if learn_svd:
