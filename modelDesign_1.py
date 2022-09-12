@@ -1,9 +1,8 @@
-from tensorflow.python.keras.utils import control_flow_util
-from tensorflow.python.ops import array_ops
-from tensorflow.keras import layers
-import tensorflow as tf
 import numpy as np
-
+import tensorflow as tf
+from tensorflow.keras import layers
+from tensorflow.python.ops import array_ops
+from tensorflow.python.keras.utils import control_flow_util
 
 bs_masks = [
     [0, 5, 12, 17],
@@ -245,7 +244,7 @@ class MultiHeadBS(layers.Layer):
         for i, bs_mask in enumerate(self.bs_masks):
             masks[i][bs_mask] = 1
 
-        masks = tf.tile(tf.expand_dims(tf.identity(masks), -1), [1, 1, 4])
+        masks = tf.tile(tf.expand_dims(tf.identity(masks), -1), [1, 1, self.num_antennas_per_bs])
         self.masks = tf.reshape(masks, [self.num_masks, -1])
         self.build = True
 
@@ -403,24 +402,11 @@ def ensemble(models):
     return model
 
 
-def Model_1(input_shape, output_shape, weights_path=None):
-    model_layer = build_model(input_shape, output_shape)
-    if weights_path is not None:
-        model_layer.load_weights(weights_path)
-
-    model = build_multi_head_bs(model_layer, bs_masks, 120)
-    return model
+def Model_1(input_shape, output_shape):
+    return build_model(input_shape, output_shape)
 
 
 if __name__ == '__main__':
-    # model = Model_1((72, 2, 256), 2, 'modelSubmit_1.h5')
-    # model.save('modelSubmit_1.h5')
-    # model = tf.keras.models.load_model('modelSubmit_1.h5')
-
-    x = tf.random.uniform([256*256]) * 120
-    argsort = tf.argsort(x)
-    p = tf.gather(x, argsort[:256])
-    n = tf.gather(x, argsort[256:]) + 1e-5
-    loss = tf.math.log1p(tf.reduce_mean(p) * (1 + tf.reduce_mean(1 / n)))
-    print(loss)
-    pass
+    model = Model_1((72, 2, 256), 2)
+    model.load_weights('modelSubmit_1.h5')
+    model.save('modelSubmit_1.h5', include_optimizer=False)

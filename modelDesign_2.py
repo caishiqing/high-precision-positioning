@@ -1,7 +1,8 @@
-from tensorflow.keras import layers
-import tensorflow as tf
 import numpy as np
-import types
+import tensorflow as tf
+from tensorflow.keras import layers
+from tensorflow.python.ops import array_ops
+from tensorflow.python.keras.utils import control_flow_util
 
 
 bs_masks = [
@@ -200,6 +201,13 @@ class AntennaEmbedding(layers.Layer):
         return mask
 
 
+class AntennaDrop(layers.Dropout):
+    def _get_noise_shape(self, inputs):
+        input_shape = array_ops.shape(inputs)
+        noise_shape = (input_shape[0], input_shape[1], 1)
+        return noise_shape
+
+
 def Residual(fn, res, dropout=0.0):
     x = fn(res)
     x = layers.Dropout(dropout)(x)
@@ -207,21 +215,26 @@ def Residual(fn, res, dropout=0.0):
     return x
 
 
-def SVD(x, units=256):
+def SVD(x, units=256, dropout=0.0):
     x = layers.TimeDistributed(layers.Flatten())(x)
+    x = AntennaDrop(dropout)(x)
     x = layers.Masking()(x)
-    x = layers.Dense(units, use_bias=False, name='svd')(x)
+    x = layers.Dense(units, use_bias=False, trainable=False, name='svd')(x)
     return x
 
 
 class MultiHeadBS(layers.Layer):
-    def __init__(self, bs_masks,
+    def __init__(self,
+                 bs_masks=None,
                  num_bs=18,
                  num_antennas_per_bs=4,
                  **kwargs):
         super(MultiHeadBS, self).__init__(**kwargs)
+        if bs_masks is None:
+            bs_masks = [list(range(num_bs))]
+
         self.bs_masks = bs_masks
-        self.num_heads = len(bs_masks)
+        self.num_masks = len(bs_masks)
         self.num_bs = num_bs
         self.num_antennas_per_bs = num_antennas_per_bs
 
@@ -230,18 +243,31 @@ class MultiHeadBS(layers.Layer):
         assert self.num_bs * self.num_antennas_per_bs == S
         self.T = T
 
-        mask = np.zeros((self.num_heads, self.num_bs), dtype=np.float32)
+        masks = np.zeros((self.num_masks, self.num_bs), dtype=np.float32)
         for i, bs_mask in enumerate(self.bs_masks):
-            mask[i][bs_mask] = 1
+            masks[i][bs_mask] = 1
 
-        mask = tf.tile(tf.expand_dims(tf.identity(mask), -1), [1, 1, 4])
-        self.mask = tf.reshape(mask, [self.num_heads, -1])[
-            tf.newaxis, :, :, tf.newaxis, tf.newaxis]
+        masks = tf.tile(tf.expand_dims(tf.identity(masks), -1), [1, 1, self.num_antennas_per_bs])
+        self.masks = tf.reshape(masks, [self.num_masks, -1])
         self.build = True
 
-    def call(self, x):
-        x = self.mask * tf.expand_dims(x, 1)  # (B, N, 72, 2, 256)
-        return x
+    def call(self, inputs, training=None):
+        if training is None:
+            training = tf.keras.backend.learning_phase()
+
+        def _train():
+            rand = tf.cast(tf.random.uniform(tf.shape(inputs)[:1]) * self.num_masks, tf.int32)
+            mask = tf.gather(self.masks, rand)[:, :, tf.newaxis, tf.newaxis]
+            x = inputs * mask
+            return tf.expand_dims(x, 1)
+
+        def _infer():
+            # (batch, N, 72, 2, 256)
+            masks = self.masks[tf.newaxis, :, :, tf.newaxis, tf.newaxis]
+            return tf.expand_dims(inputs, 1) * masks
+
+        output = control_flow_util.smart_cond(training, _train, _infer)
+        return output
 
     def get_config(self):
         config = super().get_config()
@@ -271,26 +297,54 @@ class MyTimeDistributed(layers.TimeDistributed):
         return config
 
 
+def compare_loss(pos1, pos2):
+    epsilon = 1e-9
+    label = tf.eye(tf.shape(pos1)[0])
+    p1 = tf.expand_dims(pos1, 1)
+    p2 = tf.expand_dims(pos2, 0)
+
+    dist = tf.math.sqrt(tf.reduce_sum(tf.pow(p1 - p2, 2), -1) + epsilon) + epsilon
+    logits = tf.math.log(1 / dist + epsilon)
+    loss = tf.reduce_mean(tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True))
+    return loss
+
+
+class PosModel(tf.keras.Sequential):
+    def train_step(self, data):
+        x, y = data
+        with tf.GradientTape() as tape:
+            y_pred = self(x, training=True)
+            y_augm = self(x, training=True)
+            pos_loss = self.compiled_loss(y, y_pred)
+            cmp_loss = compare_loss(y_pred, y_augm)
+            loss = pos_loss + cmp_loss
+
+        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+        return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss}
+
+
 def build_model(input_shape,
                 output_shape=2,
                 embed_dim=256,
                 hidden_dim=512,
                 num_heads=8,
-                num_attention_layers=6,
+                num_attention_layers=7,
                 dropout=0.0,
-                norm_size=None):
+                bs_masks=None,
+                norm_size=120,
+                regularize=False):
 
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    h = SVD(x, embed_dim)
+    h = SVD(x, embed_dim, dropout)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
     h = layers.Activation('relu')(h)
 
     for _ in range(num_attention_layers):
-        h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
+        h = Residual(SelfAttention(num_heads, embed_dim), h)
         h = layers.LayerNormalization()(h)
         h = Residual(
             tf.keras.Sequential(
@@ -304,12 +358,18 @@ def build_model(input_shape,
         h = layers.LayerNormalization()(h)
 
     cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
-    y = layers.Dense(output_shape, name='pos')(cls_h)
-    if norm_size is not None:
-        y = layers.Lambda(lambda x: x * norm_size)(y)
+    y = layers.Dense(output_shape, activation='sigmoid', name='pos')(cls_h)
 
-    model = tf.keras.Model(x, y)
-    return model
+    model = tf.keras.Model(x, y, name='base')
+    model_wrapper = PosModel() if regularize else tf.keras.Sequential()
+    model_wrapper.add(layers.Input(input_shape))
+    model_wrapper.add(MultiHeadBS(bs_masks, 18, 4, name='mask')),
+    model_wrapper.add(MyTimeDistributed(model, 18, 3, name='wrapper'))
+    model_wrapper.add(layers.GlobalAveragePooling1D())
+    if norm_size is not None:
+        model_wrapper.add(layers.Lambda(lambda x: x * norm_size))
+
+    return model_wrapper
 
 
 tf.keras.utils.get_custom_objects().update(
@@ -345,16 +405,11 @@ def ensemble(models):
     return model
 
 
-def Model_2(input_shape, output_shape, weights_path=None):
-    model_layer = build_model(input_shape, output_shape)
-    if weights_path is not None:
-        model_layer.load_weights(weights_path)
-
-    model = build_multi_head_bs(model_layer, bs_masks, 120)
-    return model
+def Model_2(input_shape, output_shape):
+    return build_model(input_shape, output_shape)
 
 
 if __name__ == '__main__':
-    model = Model_2((72, 2, 256), 2, 'modelSubmit_2.h5')
-    model.save('modelSubmit_2.h5')
-    model = tf.keras.models.load_model('modelSubmit_2.h5')
+    model = Model_2((72, 2, 256), 2)
+    model.load_weights('modelSubmit_2.h5')
+    model.save('modelSubmit_2.h5', include_optimizer=False)
