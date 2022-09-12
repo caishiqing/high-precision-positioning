@@ -1,4 +1,5 @@
 from tensorflow.python.keras.utils import control_flow_util
+from tensorflow.python.ops import array_ops
 from tensorflow.keras import layers
 import tensorflow as tf
 import numpy as np
@@ -198,6 +199,13 @@ class AntennaEmbedding(layers.Layer):
         return mask
 
 
+class AntennaDrop(layers.Dropout):
+    def _get_noise_shape(self, inputs):
+        input_shape = array_ops.shape(inputs)
+        noise_shape = (input_shape[0], input_shape[1], 1)
+        return noise_shape
+
+
 def Residual(fn, res, dropout=0.0):
     x = fn(res)
     x = layers.Dropout(dropout)(x)
@@ -205,8 +213,9 @@ def Residual(fn, res, dropout=0.0):
     return x
 
 
-def SVD(x, units=256):
+def SVD(x, units=256, dropout=0.0):
     x = layers.TimeDistributed(layers.Flatten())(x)
+    x = AntennaDrop(dropout)(x)
     x = layers.Masking()(x)
     x = layers.Dense(units, use_bias=False, trainable=False, name='svd')(x)
     return x
@@ -326,14 +335,14 @@ def build_model(input_shape,
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    h = SVD(x, embed_dim)
+    h = SVD(x, embed_dim, dropout)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
     h = layers.Activation('relu')(h)
 
     for _ in range(num_attention_layers):
-        h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
+        h = Residual(SelfAttention(num_heads, embed_dim), h)
         h = layers.LayerNormalization()(h)
         h = Residual(
             tf.keras.Sequential(

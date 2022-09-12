@@ -140,13 +140,12 @@ class TrainEngine:
 
     def _prepare_train_dataset(self, train_data):
         num_samples = len(train_data[0])
+        train_dataset = tf.data.Dataset.from_tensor_slices(train_data)
         if self.steps_per_epoch is not None:
-            train_dataset = tf.data.Dataset.from_tensor_slices(train_data)
             train_dataset = train_dataset.repeat().shuffle(num_samples, reshuffle_each_iteration=True)
-            train_dataset = train_dataset.batch(self.batch_size, self.drop_remainder)
-            return train_dataset, None
 
-        return train_data[0], train_data[1]
+        train_dataset = train_dataset.batch(self.batch_size, self.drop_remainder)
+        return train_dataset
 
     def _train(self,
                train_data,
@@ -155,7 +154,7 @@ class TrainEngine:
 
         strategy = self._get_strategy()
         x_train_shape = train_data[0].shape
-        x_train, y_train = self._prepare_train_dataset(train_data)
+        train_dataset = self._prepare_train_dataset(train_data)
         valid_dataset = valid_data
 
         with strategy.scope():
@@ -186,8 +185,7 @@ class TrainEngine:
 
             model.compile(optimizer=optimizer, loss=loss)
             model.get_layer('wrapper').layer.summary()
-            model.fit(x=x_train, y=y_train,
-                      batch_size=self.batch_size,
+            model.fit(train_dataset,
                       epochs=self.epochs,
                       steps_per_epoch=self.steps_per_epoch,
                       validation_data=valid_dataset,
