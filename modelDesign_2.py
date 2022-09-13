@@ -1,8 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
-from tensorflow.python.ops import array_ops
-from tensorflow.python.keras.utils import control_flow_util
+from tensorflow.python.framework.smart_cond import smart_cond
 
 
 bs_masks = [
@@ -203,7 +202,7 @@ class AntennaEmbedding(layers.Layer):
 
 class AntennaDrop(layers.Dropout):
     def _get_noise_shape(self, inputs):
-        input_shape = array_ops.shape(inputs)
+        input_shape = tf.keras.backend.int_shape(inputs)
         noise_shape = (input_shape[0], input_shape[1], 1)
         return noise_shape
 
@@ -266,7 +265,7 @@ class MultiHeadBS(layers.Layer):
             masks = self.masks[tf.newaxis, :, :, tf.newaxis, tf.newaxis]
             return tf.expand_dims(inputs, 1) * masks
 
-        output = control_flow_util.smart_cond(training, _train, _infer)
+        output = smart_cond(training, _train, _infer)
         return output
 
     def get_config(self):
@@ -377,6 +376,7 @@ tf.keras.utils.get_custom_objects().update(
         'MultiHeadAttention': MultiHeadAttention,
         'SelfAttention': SelfAttention,
         'AntennaEmbedding': AntennaEmbedding,
+        'AntennaDrop': AntennaDrop,
         'MultiHeadBS': MultiHeadBS,
         'MyTimeDistributed': MyTimeDistributed
     }

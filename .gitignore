@@ -4,3 +4,4 @@ __pycache__
 *.npy
 *.h5
 *.hdf5
+*.zip
