@@ -83,7 +83,8 @@ class TrainEngine:
                  svd_weight=None,
                  regularize=False,
                  monitor='val_loss',
-                 verbose=1):
+                 verbose=1,
+                 **model_params):
 
         self.save_path = save_path
         self.batch_size = int(batch_size)
@@ -97,6 +98,7 @@ class TrainEngine:
         self.svd_weight = svd_weight
         self.regularize = regularize
         self.verbose = verbose
+        self.model_params = model_params
 
         self.autotune = tf.data.experimental.AUTOTUNE
         self.checkpoint = tf.keras.callbacks.ModelCheckpoint(save_path,
@@ -166,7 +168,8 @@ class TrainEngine:
             model = build_model(x_train_shape[1:], 2,
                                 dropout=self.dropout,
                                 bs_masks=self.bs_masks,
-                                regularize=self.regularize)
+                                regularize=self.regularize,
+                                **self.model_params)
             model.save = types.MethodType(save_model, model)
 
             if pretrained_path is not None:
