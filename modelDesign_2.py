@@ -1,3 +1,4 @@
+import random
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
@@ -31,6 +32,10 @@ bs_masks = [
     [3, 8, 15, 11, 1, 13],
     [2, 6, 9, 14, 4, 16]
 ]
+
+bs_masks = []
+for _ in range(11):
+    bs_masks.append(random.sample(list(range(18)), 13))
 
 
 class MultiHeadAttention(layers.Layer):
