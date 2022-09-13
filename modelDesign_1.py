@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
+from tensorflow.python.ops import array_ops
 from tensorflow.python.framework.smart_cond import smart_cond
 
 
@@ -200,7 +201,7 @@ class AntennaEmbedding(layers.Layer):
 
 class AntennaDrop(layers.Dropout):
     def _get_noise_shape(self, inputs):
-        input_shape = tf.keras.backend.int_shape(inputs)
+        input_shape = array_ops.shape(inputs)
         noise_shape = (input_shape[0], input_shape[1], 1)
         return noise_shape
 
