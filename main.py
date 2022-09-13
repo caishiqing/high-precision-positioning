@@ -1,6 +1,6 @@
 from train import TrainEngine, load_data
 from sklearn.model_selection import train_test_split, KFold
-from modelDesign_1 import ensemble, build_multi_head_bs
+from modelDesign_1 import ensemble
 from sklearn.decomposition import TruncatedSVD
 from modelDesign_1 import bs_masks as masks1
 from modelDesign_2 import bs_masks as masks2
