@@ -35,7 +35,7 @@ bs_masks = [
 
 bs_masks = []
 for _ in range(11):
-    bs_masks.append(random.sample(list(range(18)), 9))
+    bs_masks.append(random.sample(list(range(18)), 7))
 
 
 class MultiHeadAttention(layers.Layer):
