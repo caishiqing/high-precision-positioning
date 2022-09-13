@@ -325,7 +325,7 @@ def build_model(input_shape,
                 embed_dim=256,
                 hidden_dim=512,
                 num_heads=8,
-                num_attention_layers=7,
+                num_attention_layers=6,
                 dropout=0.0,
                 bs_masks=None,
                 norm_size=120,
@@ -379,17 +379,6 @@ tf.keras.utils.get_custom_objects().update(
         'MyTimeDistributed': MyTimeDistributed
     }
 )
-
-
-def build_multi_head_bs(model_layer, bs_masks, norm_size=None):
-    model = tf.keras.Sequential()
-    model.add(layers.Input(model_layer.input_shape[1:]))
-    model.add(MultiHeadBS(bs_masks, 18, 4)),
-    model.add(MyTimeDistributed(model_layer, 18, 3))
-    model.add(layers.GlobalAveragePooling1D())
-    if norm_size is not None:
-        model.add(layers.Lambda(lambda x: x * norm_size))
-    return model
 
 
 def ensemble(models):
