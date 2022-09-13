@@ -22,9 +22,9 @@ bs_masks = [
 bs_masks = [[2, 15, 6, 1, 10], [14, 15, 6, 3, 8], [6, 15, 13, 10, 0], [16, 2, 6, 0, 13], [2, 11, 3, 14, 7], [
     7, 1, 12, 8, 16], [0, 14, 3, 8, 2], [17, 8, 1, 5, 0], [6, 4, 9, 12, 5], [13, 11, 4, 7, 1], [10, 3, 2, 1, 8]]
 
-# bs_masks = []
-# for _ in range(11):
-#     bs_masks.append(random.sample(list(range(18)), 5))
+bs_masks = []
+for _ in range(11):
+    bs_masks.append(random.sample(list(range(18)), 9))
 
 
 class MultiHeadAttention(layers.Layer):
