@@ -292,10 +292,13 @@ def compare_loss(pos1, pos2):
     p1 = tf.expand_dims(pos1, 1)
     p2 = tf.expand_dims(pos2, 0)
 
-    #dist = tf.math.sqrt(tf.reduce_sum(tf.pow(p1 - p2, 2), -1) + epsilon) + epsilon
     dist = tf.keras.losses.mae(p1, p2) + epsilon
-    logits = tf.math.log(1 / dist + epsilon)
-    loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
+    # logits = tf.math.log(1 / dist + epsilon)
+    # loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
+
+    pd = dist[tf.equal(label, 1.0)]
+    nd = dist[tf.equal(label, 0.0)]
+    loss = tf.math.log1p(tf.reduce_mean(pd) * (1 + tf.reduce_mean(1 / nd)))
     return tf.reduce_mean(loss)
 
 
