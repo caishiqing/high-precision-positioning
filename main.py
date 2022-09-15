@@ -147,7 +147,7 @@ def train_kfold(data_file,
         y_valid = y[valid_ids]
 
         model_path = '{}_{}.h5'.format(save_path.split('.')[0], k)
-        train_engine = TrainEngine(save_path,
+        train_engine = TrainEngine(model_path,
                                    bs_masks=bs_masks,
                                    svd_weight=svd_weight,
                                    regularize=regularize,
