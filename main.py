@@ -8,6 +8,7 @@ from multiprocessing import Process
 import tensorflow as tf
 import pandas as pd
 import numpy as np
+import random
 import fire
 import os
 
@@ -43,24 +44,32 @@ def train(data_file,
     else:
         svd_weight = None
 
-    if regularize:
-        y = np.vstack([y, np.zeros((len(x) - len(y), 2))])
-    else:
-        x = x[:len(y)]
-
+    num_samples = len(y) if not regularize and not unlabel_pred_file else len(x)
     if test_size is not None:
-        x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=test_size)
-        train_data = (x_train, y_train)
-        valid_data = (x_valid, y_valid)
+        valid_len = int(len(y) * test_size)
+        valid_ids = random.sample(list(range(len(y))), valid_len)
+        train_ids = [i for i in range(num_samples) if i not in valid_ids]
     else:
-        train_data = (x, y)
-        valid_data = None
+        train_ids = list(range(num_samples))
+        valid_ids = None
 
     if unlabel_pred_file is not None:
         y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
-        x_train = np.vstack([x_train, x[len(y):]])
-        y_train = np.vstack([y_train, y_unlabel])
-        del x, y
+        y = np.vstack([y, y_unlabel])
+
+    if regularize and not unlabel_pred_file:
+        y = np.vstack([y, np.zeros((len(x) - len(y), 2))])
+
+    random.shuffle(train_ids)
+    x_train = x[train_ids]
+    y_train = y[train_ids]
+    train_data = (x_train, y_train)
+    if valid_ids is not None:
+        x_valid = x[valid_ids]
+        y_valid = y[valid_ids]
+        valid_data = (x_valid, y_valid)
+    else:
+        valid_data = None
 
     train_engine = TrainEngine(save_path,
                                bs_masks=bs_masks,
@@ -91,6 +100,7 @@ def train_kfold(data_file,
                 pretrained_path=None,
                 mask_mode=1,
                 learn_svd=False,
+                regularize=False,
                 **kwargs):
 
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
@@ -118,9 +128,15 @@ def train_kfold(data_file,
     if unlabel_pred_file is not None:
         y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
         y = np.vstack([y, y_unlabel])
+
+    if regularize and not unlabel_pred_file:
+        y = np.vstack([y, np.zeros((len(x) - len(y), 2))])
+
+    if len(df) < len(y):
         df_unlabel = pd.DataFrame()
         df_unlabel['ids'] = list(range(len(df), len(x)))
         df_unlabel['kfold'] = -1
+        df = pd.concat([df, df_unlabel], axis=0)
 
     for k in range(kfold):
         train_ids = df[df['kfold'] != k]['ids']
@@ -131,16 +147,19 @@ def train_kfold(data_file,
         y_valid = y[valid_ids]
 
         model_path = '{}_{}.h5'.format(save_path.split('.')[0], k)
-        train_engine = TrainEngine(model_path,
-                                   batch_size=kwargs.get('batch_size', 128),
-                                   infer_batch_size=kwargs.get('infer_batch_size', 128),
-                                   epochs=kwargs.get('epochs', 100),
-                                   steps_per_epoch=kwargs.get('steps_per_epoch'),
-                                   learning_rate=kwargs.get('learning_rate', 1e-3),
-                                   dropout=kwargs.get('dropout', 0.0),
+        train_engine = TrainEngine(save_path,
                                    bs_masks=bs_masks,
                                    svd_weight=svd_weight,
-                                   verbose=kwargs.get('verbose', 1))
+                                   regularize=regularize,
+                                   batch_size=kwargs.pop('batch_size', 128),
+                                   infer_batch_size=kwargs.pop('infer_batch_size', 128),
+                                   epochs=kwargs.pop('epochs', 100),
+                                   steps_per_epoch=kwargs.pop('steps_per_epoch', None),
+                                   learning_rate=kwargs.pop('learning_rate', 1e-3),
+                                   dropout=kwargs.pop('dropout', 0.0),
+                                   monitor=kwargs.pop('monitor', 'val_loss'),
+                                   verbose=kwargs.pop('verbose', 1),
+                                   **kwargs)
 
         train_process = Process(target=train_engine,
                                 args=(

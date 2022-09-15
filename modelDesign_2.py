@@ -1,9 +1,7 @@
-import random
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.python.framework.smart_cond import smart_cond
-
 
 bs_masks = [
     [0, 4, 12, 16],
@@ -18,24 +16,6 @@ bs_masks = [
     [3, 8, 15, 11],
     [2, 6, 9, 14],
 ]
-
-# bs_masks = [
-#     [4, 0, 12, 2, 10, 9, 16, 8, 15],
-#     [10, 8, 7, 15, 13, 12, 9, 16, 11],
-#     [8, 7, 16, 6, 12, 5, 1, 14, 0],
-#     [12, 4, 15, 6, 0, 8, 14, 17, 2],
-#     [6, 5, 1, 0, 4, 17, 15, 14, 9],
-#     [10, 13, 15, 8, 3, 2, 9, 7, 14],
-#     [1, 6, 10, 0, 3, 7, 4, 17, 2],
-#     [15, 5, 14, 6, 9, 12, 8, 0, 7],
-#     [9, 6, 13, 12, 17, 2, 14, 1, 7],
-#     [3, 2, 0, 14, 11, 7, 13, 17, 8],
-#     [6, 4, 11, 15, 0, 17, 16, 7, 13]
-# ]
-
-# bs_masks = []
-# for _ in range(11):
-#     bs_masks.append(random.sample(list(range(18)), 9))
 
 
 class MultiHeadAttention(layers.Layer):
@@ -219,13 +199,6 @@ class AntennaEmbedding(layers.Layer):
         return mask
 
 
-class AntennaDrop(layers.Dropout):
-    def _get_noise_shape(self, inputs):
-        input_shape = tf.keras.backend.int_shape(inputs)
-        noise_shape = (input_shape[0], input_shape[1], 1)
-        return noise_shape
-
-
 def Residual(fn, res, dropout=0.0):
     x = fn(res)
     x = layers.Dropout(dropout)(x)
@@ -233,9 +206,8 @@ def Residual(fn, res, dropout=0.0):
     return x
 
 
-def SVD(x, units=256, dropout=0.0):
+def SVD(x, units=256):
     x = layers.TimeDistributed(layers.Flatten())(x)
-    x = AntennaDrop(dropout)(x)
     x = layers.Masking()(x)
     x = layers.Dense(units, use_bias=False, trainable=False, name='svd')(x)
     return x
@@ -321,10 +293,10 @@ def compare_loss(pos1, pos2):
     p1 = tf.expand_dims(pos1, 1)
     p2 = tf.expand_dims(pos2, 0)
 
-    dist = tf.math.sqrt(tf.reduce_sum(tf.pow(p1 - p2, 2), -1) + epsilon) + epsilon
+    dist = tf.keras.losses.mae(p1, p2) + epsilon
     logits = tf.math.log(1 / dist + epsilon)
-    loss = tf.reduce_mean(tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True))
-    return loss
+    loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
+    return tf.reduce_mean(loss)
 
 
 class PosModel(tf.keras.Sequential):
@@ -346,7 +318,7 @@ def build_model(input_shape,
                 embed_dim=256,
                 hidden_dim=512,
                 num_heads=8,
-                num_attention_layers=7,
+                num_attention_layers=6,
                 dropout=0.0,
                 bs_masks=None,
                 norm_size=120,
@@ -355,14 +327,14 @@ def build_model(input_shape,
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    h = SVD(x, embed_dim, dropout)
+    h = SVD(x, embed_dim)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
     h = layers.Activation('relu')(h)
 
     for _ in range(num_attention_layers):
-        h = Residual(SelfAttention(num_heads, embed_dim), h)
+        h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h, dropout=dropout)
         h = layers.LayerNormalization()(h)
         h = Residual(
             tf.keras.Sequential(
@@ -371,7 +343,8 @@ def build_model(input_shape,
                     layers.Dense(embed_dim)
                 ]
             ),
-            h
+            h,
+            dropout=dropout
         )
         h = layers.LayerNormalization()(h)
 
@@ -395,22 +368,10 @@ tf.keras.utils.get_custom_objects().update(
         'MultiHeadAttention': MultiHeadAttention,
         'SelfAttention': SelfAttention,
         'AntennaEmbedding': AntennaEmbedding,
-        'AntennaDrop': AntennaDrop,
         'MultiHeadBS': MultiHeadBS,
         'MyTimeDistributed': MyTimeDistributed
     }
 )
-
-
-def build_multi_head_bs(model_layer, bs_masks, norm_size=None):
-    model = tf.keras.Sequential()
-    model.add(layers.Input(model_layer.input_shape[1:]))
-    model.add(MultiHeadBS(bs_masks, 18, 4)),
-    model.add(MyTimeDistributed(model_layer, 18, 3))
-    model.add(layers.GlobalAveragePooling1D())
-    if norm_size is not None:
-        model.add(layers.Lambda(lambda x: x * norm_size))
-    return model
 
 
 def ensemble(models):
@@ -424,8 +385,12 @@ def ensemble(models):
     return model
 
 
-def Model_2(input_shape, output_shape):
-    return build_model(input_shape, output_shape)
+def Model_2(input_shape, output_shape, kfold=1):
+    models = [build_model(input_shape, output_shape) for _ in range(kfold)]
+    if kfold == 1:
+        return models[0]
+
+    return ensemble(models)
 
 
 if __name__ == '__main__':

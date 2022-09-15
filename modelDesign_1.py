@@ -384,8 +384,12 @@ def ensemble(models):
     return model
 
 
-def Model_1(input_shape, output_shape):
-    return build_model(input_shape, output_shape)
+def Model_1(input_shape, output_shape, kfold=1):
+    models = [build_model(input_shape, output_shape) for _ in range(kfold)]
+    if kfold == 1:
+        return models[0]
+
+    return ensemble(models)
 
 
 if __name__ == '__main__':
