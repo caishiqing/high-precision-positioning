@@ -174,6 +174,7 @@ def train_kfold(data_file,
     for k in range(kfold):
         model_path = '{}_{}.h5'.format(save_path.split('.')[0], k)
         model = tf.keras.models.load_model(model_path, compile=False)
+        model._name = '{}_{}'.format(model._name, k)
         models.append(model)
 
     model = ensemble(models)
