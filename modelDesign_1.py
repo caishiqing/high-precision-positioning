@@ -377,6 +377,7 @@ def ensemble(models):
     x = layers.Input(shape=models[0].input_shape[1:])
     ys = []
     for i, model in enumerate(models):
+        model._name = '{}_{}'.format(model._name, i)
         ys.append(model(x))
 
     y = layers.Average()(ys)
