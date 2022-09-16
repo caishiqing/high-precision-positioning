@@ -315,7 +315,7 @@ class PosModel(tf.keras.Sequential):
 def build_model(input_shape,
                 output_shape=2,
                 embed_dim=256,
-                hidden_dim=512,
+                hidden_dim=1024,
                 num_heads=8,
                 num_attention_layers=6,
                 dropout=0.0,

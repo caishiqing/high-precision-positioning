@@ -316,7 +316,7 @@ class PosModel(tf.keras.Sequential):
 def build_model(input_shape,
                 output_shape=2,
                 embed_dim=256,
-                hidden_dim=512,
+                hidden_dim=1024,
                 num_heads=8,
                 num_attention_layers=6,
                 dropout=0.0,
@@ -394,6 +394,6 @@ def Model_2(input_shape, output_shape, kfold=1):
 
 
 if __name__ == '__main__':
-    model = Model_2((72, 2, 256), 2)
+    model = Model_2((72, 2, 256), 2, kfold=1)
     model.load_weights('modelSubmit_2.h5')
     model.save('modelSubmit_2.h5', include_optimizer=False)
