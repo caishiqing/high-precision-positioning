@@ -147,8 +147,9 @@ class TrainEngine:
             labeled_data = train_dataset.filter(lambda x, y: tf.reduce_all(tf.not_equal(y, 0))).repeat()
             unlabel_data = train_dataset.filter(lambda x, y: tf.reduce_all(tf.equal(y, 0))).repeat()
             train_dataset = tf.data.experimental.sample_from_datasets([labeled_data, unlabel_data], [0.5, 0.5])
-            for features, label in train_dataset.batch(4).take(1):
+            for features, label in train_dataset.batch(4):
                 print(label.numpy())
+                break
         if self.steps_per_epoch is not None:
             train_dataset = train_dataset.repeat().shuffle(num_samples, reshuffle_each_iteration=True)
 
