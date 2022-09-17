@@ -132,7 +132,8 @@ def train_kfold(data_file,
         y = np.vstack([y, y_unlabel])
 
     if regularize and not unlabel_pred_file:
-        y = np.vstack([y, np.zeros((len(x) - len(y), 2))])
+        #y = np.vstack([y, np.zeros((len(x) - len(y), 2))])
+        y = np.vstack([y, np.zeros((len(y), 2))])
 
     if len(df) < len(y):
         df_unlabel = pd.DataFrame()
