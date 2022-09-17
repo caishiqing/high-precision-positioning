@@ -136,7 +136,7 @@ def train_kfold(data_file,
 
     if len(df) < len(y):
         df_unlabel = pd.DataFrame()
-        df_unlabel['ids'] = list(range(len(df), len(x)))
+        df_unlabel['ids'] = list(range(len(df), len(y)))
         df_unlabel['kfold'] = -1
         df = pd.concat([df, df_unlabel], axis=0)
 
