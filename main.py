@@ -143,6 +143,7 @@ def train_kfold(data_file,
     for k in range(kfold):
         train_ids = df[df['kfold'] != k]['ids']
         valid_ids = df[df['kfold'] == k]['ids']
+        random.shuffle(train_ids)
         x_train = x[train_ids]
         y_train = y[train_ids]
         x_valid = x[valid_ids]
