@@ -291,11 +291,15 @@ def compare_loss(pos1, pos2):
     label = tf.eye(tf.shape(pos1)[0])
     p1 = tf.expand_dims(pos1, 1)
     p2 = tf.expand_dims(pos2, 0)
+    dist = tf.keras.losses.mae(p1, p2)
 
-    dist = tf.keras.losses.mae(p1, p2) + epsilon
-    logits = tf.math.log(1 / dist + epsilon)
-    loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
-    return tf.reduce_mean(loss)
+    logits = -tf.math.log(dist + epsilon)
+    categorical_loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
+
+    positive_dist = dist[tf.equal(label, 1.0)]
+    consistance_loss = tf.math.log1p(tf.reduce_sum(positive_dist))
+
+    return consistance_loss + tf.reduce_mean(categorical_loss)
 
 
 class PosModel(tf.keras.Sequential):

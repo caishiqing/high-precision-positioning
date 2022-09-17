@@ -394,6 +394,6 @@ def Model_2(input_shape, output_shape, kfold=1):
 
 
 if __name__ == '__main__':
-    model = Model_2((72, 2, 256), 2, kfold=1)
+    model = Model_2((72, 2, 256), 2, kfold=5)
     model.load_weights('modelSubmit_2.h5')
     model.save('modelSubmit_2.h5', include_optimizer=False)
