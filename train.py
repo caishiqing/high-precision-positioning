@@ -144,7 +144,7 @@ class TrainEngine:
         num_samples = len(train_data[0])
         train_dataset = tf.data.Dataset.from_tensor_slices(train_data)
         if unlabel_x is not None:
-            unlabel_y = np.zeros((len(unlabel_x), 2))
+            unlabel_y = np.zeros((len(unlabel_x), 2), dtype=np.float32)
             unlabel_dataset = tf.data.Dataset.from_tensor_slices((unlabel_x, unlabel_y))
             train_dataset = tf.data.experimental.sample_from_datasets(
                 [train_dataset.repeat(), unlabel_dataset.repeat()], [0.5, 0.5])
