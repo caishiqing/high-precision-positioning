@@ -141,8 +141,8 @@ def train_kfold(data_file,
         df = pd.concat([df, df_unlabel], axis=0)
 
     for k in range(kfold):
-        train_ids = df[df['kfold'] != k]['ids']
-        valid_ids = df[df['kfold'] == k]['ids']
+        train_ids = df[df['kfold'] != k]['ids'].to_list()
+        valid_ids = df[df['kfold'] == k]['ids'].to_list()
         random.shuffle(train_ids)
         x_train = x[train_ids]
         y_train = y[train_ids]
