@@ -98,7 +98,7 @@ def train_kfold(data_file,
                 unlabel_pred_file=None,
                 kfold=5,
                 pretrained_path=None,
-                mask_mode=1,
+                mask_mode=None,
                 learn_svd=False,
                 regularize=False,
                 **kwargs):
