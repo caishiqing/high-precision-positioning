@@ -120,25 +120,16 @@ def train_kfold(data_file,
     else:
         svd_weight = None
 
+    if unlabel_pred_file is not None:
+        y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
+        y = np.vstack([y, y_unlabel])
+
     df = pd.DataFrame()
     df['ids'] = list(range(len(y)))
     df['kfold'] = 0
     kf = KFold(n_splits=kfold, shuffle=True)
     for k, (_, v) in enumerate(kf.split(df)):
         df.loc[v, 'kfold'] = k
-
-    if unlabel_pred_file is not None:
-        y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
-        y = np.vstack([y, y_unlabel])
-
-    if regularize and not unlabel_pred_file:
-        y = np.vstack([y, np.zeros((len(x) - len(y), 2))])
-
-    if len(df) < len(y):
-        df_unlabel = pd.DataFrame()
-        df_unlabel['ids'] = list(range(len(df), len(y)))
-        df_unlabel['kfold'] = -1
-        df = pd.concat([df, df_unlabel], axis=0)
 
     for k in range(kfold):
         train_ids = df[df['kfold'] != k]['ids'].to_list()
@@ -148,6 +139,11 @@ def train_kfold(data_file,
         y_train = y[train_ids]
         x_valid = x[valid_ids]
         y_valid = y[valid_ids]
+
+        if regularize and len(y) < len(x):
+            unlabel_data = x[len(y):]
+        else:
+            unlabel_data = None
 
         model_path = '{}_{}.h5'.format(save_path.split('.')[0], k)
         train_engine = TrainEngine(model_path,
@@ -167,6 +163,7 @@ def train_kfold(data_file,
                                 args=(
                                     (x_train, y_train),
                                     (x_valid, y_valid),
+                                    unlabel_data,
                                     pretrained_path
                                 ))
 
