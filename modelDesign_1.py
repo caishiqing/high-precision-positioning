@@ -296,10 +296,10 @@ def compare_loss(pos1, pos2):
     logits = -tf.math.log(dist + epsilon)
     categorical_loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
 
-    positive_dist = dist[tf.equal(label, 1.0)]
-    consistance_loss = tf.math.log1p(tf.reduce_sum(positive_dist))
+    # positive_dist = dist[tf.equal(label, 1.0)]
+    # consistance_loss = tf.math.log1p(tf.reduce_sum(positive_dist))
 
-    return consistance_loss + tf.reduce_mean(categorical_loss)
+    return tf.reduce_mean(categorical_loss)
 
 
 class PosModel(tf.keras.Sequential):
