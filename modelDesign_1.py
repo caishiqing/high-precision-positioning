@@ -291,9 +291,9 @@ def compare_loss(pos1, pos2):
     label = tf.eye(tf.shape(pos1)[0])
     p1 = tf.expand_dims(pos1, 1)
     p2 = tf.expand_dims(pos2, 0)
-    dist = tf.keras.losses.mae(p1, p2)
+    dist = tf.sqrt(tf.keras.losses.mse(p1, p2) + epsilon)
 
-    logits = -tf.math.log(dist + epsilon)
+    logits = -tf.math.log(dist)
     categorical_loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
 
     # positive_dist = dist[tf.equal(label, 1.0)]
@@ -310,7 +310,7 @@ class PosModel(tf.keras.Sequential):
             y_augm = self(x, training=True)
             pos_loss = self.compiled_loss(y, y_pred)
             cmp_loss = compare_loss(y_pred, y_augm)
-            loss = pos_loss + 0 * cmp_loss
+            loss = pos_loss + 0.1 * cmp_loss
 
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
         return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss}
