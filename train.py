@@ -143,6 +143,11 @@ class TrainEngine:
     def _prepare_train_dataset(self, train_data):
         num_samples = len(train_data[0])
         train_dataset = tf.data.Dataset.from_tensor_slices(train_data)
+        if self.regularize:
+            labeled_data=train_dataset.filter(lambda x,y: tf.reduce_all(tf.not_equal(y,0))).repeat()
+            unlabel_data=train_dataset.filter(lambda x,y: tf.reduce_all(tf.equal(y,0))).repeat()
+            train_dataset=tf.data.experimental.sample_from_datasets([labeled_data, unlabel_data], [0.5,0.5])
+        
         if self.steps_per_epoch is not None:
             train_dataset = train_dataset.repeat().shuffle(num_samples, reshuffle_each_iteration=True)
 
