@@ -106,11 +106,13 @@ def train_kfold(data_file,
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     tf.config.threading.set_inter_op_parallelism_threads(4)
 
-    if mask_mode == 1:
+    if mask_mode is None:
+        bs_masks = None
+    elif mask_mode == 1:
         bs_masks = masks1
     elif mask_mode == 2:
         bs_masks = masks2
-    print(bs_masks)
+    print('BS Masks: ', bs_masks)
 
     x, y = load_data(data_file, label_file)
     if learn_svd:
