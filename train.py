@@ -65,6 +65,36 @@ def mask_loss(loss_fn):
     return _loss_fn
 
 
+def compare_loss(pos1, pos2):
+    p1 = tf.expand_dims(pos1, 1)
+    p2 = tf.expand_dims(pos2, 0)
+    dist = tf.sqrt(tf.keras.losses.mse(p1, p2) + 1e-9)
+
+    label = tf.eye(tf.shape(pos1)[0])
+    pd = dist[tf.equal(label, 1)]
+    nd = dist[tf.equal(label, 0)]
+
+    # logits = -tf.math.log(dist)
+    # categorical_loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
+    # loss = tf.reduce_mean(categorical_loss)
+
+    loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_sum(1 / nd)))
+    return loss
+
+
+def train_step(cls, data):
+    x, y = data
+    with tf.GradientTape() as tape:
+        y_pred = cls(x, training=True)
+        y_augm = cls(x, training=True)
+        pos_loss = cls.compiled_loss(y, y_pred)
+        cmp_loss = compare_loss(y_pred, y_augm)
+        loss = pos_loss + cmp_loss
+
+    cls.optimizer.minimize(loss, cls.trainable_variables, tape=tape)
+    return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss}
+
+
 def save_model(cls, filepath, **kwargs):
     kwargs["include_optimizer"] = False
     tf.keras.models.save_model(cls, filepath, **kwargs)
@@ -177,7 +207,10 @@ class TrainEngine:
                                 bs_masks=self.bs_masks,
                                 regularize=self.regularize,
                                 **self.model_params)
+
             model.save = types.MethodType(save_model, model)
+            if self.regularize:
+                model.train_step = types.MethodType(train_step, model)
 
             if pretrained_path is not None:
                 print("Load pretrained weights from {}".format(pretrained_path))

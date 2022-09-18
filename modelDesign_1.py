@@ -356,7 +356,8 @@ def build_model(input_shape,
     y = layers.Dense(output_shape, activation='sigmoid', name='pos')(cls_h)
 
     model = tf.keras.Model(x, y, name='base')
-    model_wrapper = PosModel() if regularize else tf.keras.Sequential()
+    #model_wrapper = PosModel() if regularize else tf.keras.Sequential()
+    model_wrapper = tf.keras.Sequential()
     model_wrapper.add(layers.Input(input_shape))
     model_wrapper.add(MultiHeadBS(bs_masks, 18, 4, name='mask')),
     model_wrapper.add(MyTimeDistributed(model, 18, 3, name='wrapper'))
