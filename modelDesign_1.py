@@ -200,8 +200,8 @@ class AntennaEmbedding(layers.Layer):
 
 
 def Residual(fn, res, dropout=0.0):
-    x = layers.LayerNormalization()(x)
-    x = fn(res)
+    x = layers.LayerNormalization()(res)
+    x = fn(x)
     x = layers.Dropout(dropout)(x)
     x = layers.Add()([res, x])
     return x
