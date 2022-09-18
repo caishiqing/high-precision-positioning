@@ -44,26 +44,16 @@ def train(data_file,
     else:
         svd_weight = None
 
-    num_samples = len(y) if not regularize and not unlabel_pred_file else len(x)
-    if test_size is not None:
-        valid_len = int(len(y) * test_size)
-        valid_ids = random.sample(list(range(len(y))), valid_len)
-        train_ids = [i for i in range(num_samples) if i not in valid_ids]
-    else:
-        train_ids = list(range(num_samples))
-        valid_ids = None
-
     if unlabel_pred_file is not None:
         y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
         y = np.vstack([y, y_unlabel])
 
-    random.shuffle(train_ids)
-    x_train = x[train_ids]
-    y_train = y[train_ids]
+    if test_size is None:
+        test_size = 0
+
+    x_train, x_valid, y_train, y_valid = train_test_split(x[:len(y)], y, test_size=test_size)
     train_data = (x_train, y_train)
-    if valid_ids is not None:
-        x_valid = x[valid_ids]
-        y_valid = y[valid_ids]
+    if test_size > 0:
         valid_data = (x_valid, y_valid)
     else:
         valid_data = None

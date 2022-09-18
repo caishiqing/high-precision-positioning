@@ -1,3 +1,4 @@
+from random import triangular
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
@@ -287,19 +288,20 @@ class MyTimeDistributed(layers.TimeDistributed):
 
 
 def compare_loss(pos1, pos2):
-    epsilon = 1e-9
-    label = tf.eye(tf.shape(pos1)[0])
     p1 = tf.expand_dims(pos1, 1)
     p2 = tf.expand_dims(pos2, 0)
-    dist = tf.sqrt(tf.keras.losses.mse(p1, p2) + epsilon)
+    dist = tf.sqrt(tf.keras.losses.mse(p1, p2) + 1e-9)
 
-    logits = -tf.math.log(dist)
-    categorical_loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
+    label = tf.eye(tf.shape(pos1)[0])
+    pd = dist[tf.equal(label, 1)]
+    nd = dist[tf.equal(label, 0)]
 
-    # positive_dist = dist[tf.equal(label, 1.0)]
-    # consistance_loss = tf.math.log1p(tf.reduce_sum(positive_dist))
+    # logits = -tf.math.log(dist)
+    # categorical_loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
+    # loss = tf.reduce_mean(categorical_loss)
 
-    return tf.reduce_mean(categorical_loss)
+    loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_mean(1 / nd)))
+    return loss
 
 
 class PosModel(tf.keras.Sequential):
