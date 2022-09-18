@@ -203,7 +203,7 @@ def Residual(fn, res, dropout=0.0):
     x = fn(res)
     x = layers.Dropout(dropout)(x)
     x = layers.Add()([res, x])
-    x = layers.BatchNormalization()(x)
+    x = layers.LayerNormalization()(x)
     return x
 
 
@@ -305,7 +305,7 @@ def build_model(input_shape,
     h = SVD(x, embed_dim)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
-    h = layers.BatchNormalization()(h)
+    h = layers.LayerNormalization()(h)
     h = layers.Activation('relu')(h)
 
     for _ in range(num_attention_layers):
