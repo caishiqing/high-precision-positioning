@@ -14,7 +14,12 @@ bs_masks = [
     [2, 6, 10, 14],
     [3, 7, 11, 15],
     [1, 4, 13, 16],
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    [0, 9, 12, 7],
+    [5, 8, 17, 10],
+    [1, 5, 12, 15],
+    [0, 4, 13, 17],
+    [3, 8, 15, 11],
+    [2, 6, 9, 14]
 ]
 
 
@@ -210,7 +215,7 @@ def Residual(fn, res, dropout=0.0):
 def SVD(x, units=256):
     x = layers.TimeDistributed(layers.Flatten())(x)
     x = layers.Masking()(x)
-    x = layers.Dense(units, use_bias=False, trainable=False, name='svd')(x)
+    x = layers.Dense(units, use_bias=False, name='svd')(x)
     return x
 
 
@@ -293,7 +298,7 @@ def build_model(input_shape,
                 embed_dim=256,
                 hidden_dim=1024,
                 num_heads=8,
-                num_attention_layers=6,
+                num_attention_layers=9,
                 dropout=0.0,
                 bs_masks=None,
                 norm_size=120,

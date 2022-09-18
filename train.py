@@ -215,7 +215,7 @@ class TrainEngine:
             if self.svd_weight is not None:
                 print('Load svd weight!')
                 model.get_layer('wrapper').layer.get_layer('svd').set_weights([self.svd_weight])
-            model.get_layer('wrapper').layer.get_layer('svd').trainable = True
+
             if valid_data is None:
                 loss = None
             elif self.regularize:
