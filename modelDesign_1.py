@@ -200,10 +200,10 @@ class AntennaEmbedding(layers.Layer):
 
 
 def Residual(fn, res, dropout=0.0):
+    x = layers.LayerNormalization()(x)
     x = fn(res)
     x = layers.Dropout(dropout)(x)
     x = layers.Add()([res, x])
-    x = layers.LayerNormalization()(x)
     return x
 
 
@@ -305,8 +305,8 @@ def build_model(input_shape,
     h = SVD(x, embed_dim)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
-    h = layers.LayerNormalization()(h)
-    h = layers.Activation('relu')(h)
+    # h = layers.LayerNormalization()(h)
+    # h = layers.Activation('relu')(h)
 
     for _ in range(num_attention_layers):
         h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h, dropout=dropout)
@@ -320,6 +320,7 @@ def build_model(input_shape,
             h,
             dropout=dropout
         )
+    h = layers.LayerNormalization()(h)
 
     cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
     y = layers.Dense(output_shape, activation='sigmoid', name='pos')(cls_h)

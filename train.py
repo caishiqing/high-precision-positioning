@@ -197,10 +197,11 @@ class TrainEngine:
         valid_dataset = valid_data
 
         with strategy.scope():
-            warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
-            optimizer = AdamWarmup(warmup_steps=warmup_steps,
-                                   decay_steps=decay_steps,
-                                   initial_learning_rate=self.learning_rate)
+            # warmup_steps, decay_steps = self._compute_warmup_steps(x_train_shape[0])
+            # optimizer = AdamWarmup(warmup_steps=warmup_steps,
+            #                        decay_steps=decay_steps,
+            #                        initial_learning_rate=self.learning_rate)
+            optimizer = tf.keras.optimizers.Adam(self.learning_rate)
 
             model = build_model(x_train_shape[1:], 2,
                                 dropout=self.dropout,
