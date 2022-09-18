@@ -288,37 +288,6 @@ class MyTimeDistributed(layers.TimeDistributed):
         return config
 
 
-def compare_loss(pos1, pos2):
-    p1 = tf.expand_dims(pos1, 1)
-    p2 = tf.expand_dims(pos2, 0)
-    dist = tf.sqrt(tf.keras.losses.mse(p1, p2) + 1e-9)
-
-    label = tf.eye(tf.shape(pos1)[0])
-    pd = dist[tf.equal(label, 1)]
-    nd = dist[tf.equal(label, 0)]
-
-    # logits = -tf.math.log(dist)
-    # categorical_loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
-    # loss = tf.reduce_mean(categorical_loss)
-
-    loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_sum(1 / nd)))
-    return loss
-
-
-class PosModel(tf.keras.Sequential):
-    def train_step(self, data):
-        x, y = data
-        with tf.GradientTape() as tape:
-            y_pred = self(x, training=True)
-            y_augm = self(x, training=True)
-            pos_loss = self.compiled_loss(y, y_pred)
-            cmp_loss = compare_loss(y_pred, y_augm)
-            loss = pos_loss + cmp_loss
-
-        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
-        return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss}
-
-
 def build_model(input_shape,
                 output_shape=2,
                 embed_dim=256,
@@ -356,7 +325,6 @@ def build_model(input_shape,
     y = layers.Dense(output_shape, activation='sigmoid', name='pos')(cls_h)
 
     model = tf.keras.Model(x, y, name='base')
-    #model_wrapper = PosModel() if regularize else tf.keras.Sequential()
     model_wrapper = tf.keras.Sequential()
     model_wrapper.add(layers.Input(input_shape))
     model_wrapper.add(MultiHeadBS(bs_masks, 18, 4, name='mask')),

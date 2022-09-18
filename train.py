@@ -72,14 +72,14 @@ def compare_loss(pos1, pos2):
 
     label = tf.eye(tf.shape(pos1)[0])
     pd = dist[tf.equal(label, 1)]
-    nd = dist[tf.equal(label, 0)]
+    #nd = dist[tf.equal(label, 0)]
 
-    # logits = -tf.math.log(dist)
-    # categorical_loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
-    # loss = tf.reduce_mean(categorical_loss)
+    logits = -tf.math.log(dist)
+    categorical_loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
+    categorical_loss = tf.reduce_mean(categorical_loss)
 
-    loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_sum(1 / nd)))
-    return loss
+    consistance_loss = tf.math.log1p(tf.reduce_sum(pd))
+    return categorical_loss + consistance_loss
 
 
 def train_step(cls, data):
