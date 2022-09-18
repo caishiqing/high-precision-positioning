@@ -57,9 +57,6 @@ def train(data_file,
         y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
         y = np.vstack([y, y_unlabel])
 
-    if regularize and not unlabel_pred_file:
-        y = np.vstack([y, np.zeros((len(x) - len(y), 2))])
-
     random.shuffle(train_ids)
     x_train = x[train_ids]
     y_train = y[train_ids]
@@ -70,6 +67,11 @@ def train(data_file,
         valid_data = (x_valid, y_valid)
     else:
         valid_data = None
+
+    if regularize and len(y) < len(x):
+        unlabel_data = x[len(y):]
+    else:
+        unlabel_data = None
 
     train_engine = TrainEngine(save_path,
                                bs_masks=bs_masks,
@@ -86,7 +88,7 @@ def train(data_file,
                                **kwargs)
 
     train_process = Process(target=train_engine,
-                            args=(train_data, valid_data, pretrained_path))
+                            args=(train_data, valid_data, unlabel_data, pretrained_path))
 
     train_process.start()
     train_process.join()
