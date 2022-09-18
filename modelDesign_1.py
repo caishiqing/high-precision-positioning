@@ -301,7 +301,7 @@ def compare_loss(pos1, pos2):
     # categorical_loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
     # loss = tf.reduce_mean(categorical_loss)
 
-    loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_mean(1 / nd)))
+    loss = tf.math.log1p(tf.reduce_sum(pd) * (1 + tf.reduce_sum(1 / nd)))
     return loss
 
 
