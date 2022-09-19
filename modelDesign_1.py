@@ -193,15 +193,15 @@ class AntennaEmbedding(layers.Layer):
         if mask is None:
             return None
 
-        # cls_mask = tf.cast(tf.ones(shape=(tf.shape(mask)[0], 1)), mask.dtype)
+        #cls_mask = tf.cast(tf.ones(shape=(tf.shape(mask)[0], 1)), mask.dtype)
         cls_mask = tf.ones_like(mask, dtype=mask.dtype)[:, :1]
         mask = tf.concat([cls_mask, mask], axis=1)
         return mask
 
 
 def Conv(x):
-    x = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))
-    x1, x2, x3, x4 = tf.split(x, 4, axis=2)
+    x = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
+    x1, x2, x3, x4 = layers.Lambda(lambda x: tf.split(x, 4, axis=2))(x)
 
     x1 = layers.TimeDistributed(layers.Conv1D(64, 31, activation='relu'))(x1)
     x1 = layers.TimeDistributed(layers.Conv1D(128, 17, activation='relu'))(x1)
@@ -325,7 +325,7 @@ def build_model(input_shape,
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    # h = SVD(x, embed_dim)
+    #h = SVD(x, embed_dim)
     h = Conv(x)
     h = layers.Dense(embed_dim)(h)
     h = AntennaEmbedding()(h)
