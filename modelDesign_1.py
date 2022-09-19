@@ -216,7 +216,7 @@ def Conv(x):
     x4 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x4)
 
     x = layers.Concatenate()([x1, x2, x3, x4])
-    x = layers.LayerNormalization()(x)
+    x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
     return x
 
