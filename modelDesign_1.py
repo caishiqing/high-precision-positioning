@@ -201,7 +201,7 @@ class AntennaEmbedding(layers.Layer):
 
 def Conv(x):
     x = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))
-    x1, x2, x3, x4 = layers.Lambda(lambda x: tf.split(x, axis=2, num=4))(x)
+    x1, x2, x3, x4 = layers.Lambda(lambda x: tf.split(x, 4, axis=2))(x)
 
     x1 = layers.TimeDistributed(layers.Conv1D(64, 31, activation='relu'))(x1)
     x1 = layers.TimeDistributed(layers.Conv1D(128, 17, activation='relu'))(x1)
