@@ -204,6 +204,30 @@ class AntennaEmbedding(layers.Layer):
         return mask
 
 
+def Conv(x):
+    x = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))
+    x1, x2, x3, x4 = layers.Lambda(lambda x: tf.split(x, axis=2, num=4))(x)
+
+    x1 = layers.TimeDistributed(layers.Conv1D(64, 31, activation='relu'))(x1)
+    x1 = layers.TimeDistributed(layers.Conv1D(128, 17, activation='relu'))(x1)
+    x1 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x1)
+
+    x2 = layers.TimeDistributed(layers.Conv1D(32, 31, activation='relu'))(x2)
+    x2 = layers.TimeDistributed(layers.Conv1D(64, 17, activation='relu'))(x2)
+    x2 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x2)
+
+    x3 = layers.TimeDistributed(layers.Conv1D(16, 31, activation='relu'))(x3)
+    x3 = layers.TimeDistributed(layers.Conv1D(32, 17, activation='relu'))(x3)
+    x3 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x3)
+
+    x4 = layers.TimeDistributed(layers.Conv1D(8, 31, activation='relu'))(x4)
+    x4 = layers.TimeDistributed(layers.Conv1D(16, 17, activation='relu'))(x4)
+    x4 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x4)
+
+    x = layers.Concatenate()([x1, x2, x3, x4])
+    return x
+
+
 def Residual(fn, res, dropout=0.0):
     x = fn(res)
     x = layers.Dropout(dropout)(x)
@@ -298,16 +322,17 @@ def build_model(input_shape,
                 embed_dim=256,
                 hidden_dim=1024,
                 num_heads=8,
-                num_attention_layers=9,
+                num_attention_layers=6,
                 dropout=0.0,
                 bs_masks=None,
-                norm_size=120,
-                regularize=False):
+                norm_size=120):
 
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    h = SVD(x, embed_dim)
+    #h = SVD(x, embed_dim)
+    h = Conv(x)
+    h = layers.Dense(embed_dim)(h)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
