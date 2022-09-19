@@ -203,24 +203,20 @@ def Conv(x):
     x = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
     x1, x2, x3, x4 = layers.Lambda(lambda x: tf.split(x, 4, axis=2))(x)
 
-    x1 = layers.TimeDistributed(layers.Conv1D(64, 31, activation='relu'))(x1)
-    x1 = layers.TimeDistributed(layers.Conv1D(128, 17))(x1)
+    x1 = layers.TimeDistributed(layers.Conv1D(128, 61))(x1)
     x1 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x1)
 
-    x2 = layers.TimeDistributed(layers.Conv1D(32, 31, activation='relu'))(x2)
-    x2 = layers.TimeDistributed(layers.Conv1D(64, 17))(x2)
+    x2 = layers.TimeDistributed(layers.Conv1D(64, 61))(x2)
     x2 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x2)
 
-    x3 = layers.TimeDistributed(layers.Conv1D(16, 31, activation='relu'))(x3)
-    x3 = layers.TimeDistributed(layers.Conv1D(32, 17))(x3)
+    x3 = layers.TimeDistributed(layers.Conv1D(32, 61))(x3)
     x3 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x3)
 
-    x4 = layers.TimeDistributed(layers.Conv1D(8, 31, activation='relu'))(x4)
-    x4 = layers.TimeDistributed(layers.Conv1D(16, 17))(x4)
+    x4 = layers.TimeDistributed(layers.Conv1D(16, 61))(x4)
     x4 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x4)
 
     x = layers.Concatenate()([x1, x2, x3, x4])
-    x = layers.LayerNormalization()(x)
+    x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
     return x
 
