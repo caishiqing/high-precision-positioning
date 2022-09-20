@@ -74,8 +74,8 @@ def compare_loss(pos1, pos2):
     #pd = dist[tf.equal(label, 1)]
     #nd = dist[tf.equal(label, 0)]
 
-    logits = -tf.math.log(dist) / 10
-    loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
+    # logits = -tf.math.log(dist) / 10
+    loss = tf.keras.losses.categorical_crossentropy(label, 1 / dist, from_logits=True)
     return tf.reduce_mean(loss)
 
 
