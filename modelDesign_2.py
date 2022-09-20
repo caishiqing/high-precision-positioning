@@ -199,17 +199,40 @@ class AntennaEmbedding(layers.Layer):
         return mask
 
 
+# def Conv(x):
+#     x = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
+#     x1, x2, x3, x4 = layers.Lambda(lambda x: tf.split(x, 4, axis=2))(x)
+
+#     x1 = layers.TimeDistributed(layers.Conv1D(128, 61))(x1)
+#     x1 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x1)
+
+#     x2 = layers.TimeDistributed(layers.Conv1D(64, 61))(x2)
+#     x2 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x2)
+
+#     x3 = layers.TimeDistributed(layers.Conv1D(32, 61))(x3)
+#     x3 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x3)
+
+#     x4 = layers.TimeDistributed(layers.Conv1D(16, 61))(x4)
+#     x4 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x4)
+
+#     x = layers.Concatenate()([x1, x2, x3, x4])
+#     x = layers.LayerNormalization()(x)
+#     x = layers.Activation('relu')(x)
+#     return x
+
+
 def Residual(fn, res, dropout=0.0):
     x = fn(res)
     x = layers.Dropout(dropout)(x)
     x = layers.Add()([res, x])
+    x = layers.LayerNormalization()(x)
     return x
 
 
 def SVD(x, units=256):
     x = layers.TimeDistributed(layers.Flatten())(x)
     x = layers.Masking()(x)
-    x = layers.Dense(units, use_bias=False, name='svd')(x)
+    x = layers.Dense(units, use_bias=False, trainable=False, name='svd')(x)
     return x
 
 
@@ -287,32 +310,6 @@ class MyTimeDistributed(layers.TimeDistributed):
         return config
 
 
-def compare_loss(pos1, pos2):
-    epsilon = 1e-9
-    label = tf.eye(tf.shape(pos1)[0])
-    p1 = tf.expand_dims(pos1, 1)
-    p2 = tf.expand_dims(pos2, 0)
-
-    dist = tf.keras.losses.mae(p1, p2) + epsilon
-    logits = tf.math.log(1 / dist + epsilon)
-    loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
-    return tf.reduce_mean(loss)
-
-
-class PosModel(tf.keras.Sequential):
-    def train_step(self, data):
-        x, y = data
-        with tf.GradientTape() as tape:
-            y_pred = self(x, training=True)
-            y_augm = self(x, training=True)
-            pos_loss = self.compiled_loss(y, y_pred)
-            cmp_loss = compare_loss(y_pred, y_augm)
-            loss = pos_loss + cmp_loss
-
-        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
-        return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss}
-
-
 def build_model(input_shape,
                 output_shape=2,
                 embed_dim=256,
@@ -321,8 +318,7 @@ def build_model(input_shape,
                 num_attention_layers=6,
                 dropout=0.0,
                 bs_masks=None,
-                norm_size=120,
-                regularize=False):
+                norm_size=120):
 
     assert embed_dim % num_heads == 0
 
@@ -335,7 +331,6 @@ def build_model(input_shape,
 
     for _ in range(num_attention_layers):
         h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h, dropout=dropout)
-        h = layers.LayerNormalization()(h)
         h = Residual(
             tf.keras.Sequential(
                 layers=[
@@ -346,13 +341,12 @@ def build_model(input_shape,
             h,
             dropout=dropout
         )
-        h = layers.LayerNormalization()(h)
 
     cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
     y = layers.Dense(output_shape, activation='sigmoid', name='pos')(cls_h)
 
     model = tf.keras.Model(x, y, name='base')
-    model_wrapper = PosModel() if regularize else tf.keras.Sequential()
+    model_wrapper = tf.keras.Sequential()
     model_wrapper.add(layers.Input(input_shape))
     model_wrapper.add(MultiHeadBS(bs_masks, 18, 4, name='mask')),
     model_wrapper.add(MyTimeDistributed(model, 18, 3, name='wrapper'))
@@ -378,6 +372,7 @@ def ensemble(models):
     x = layers.Input(shape=models[0].input_shape[1:])
     ys = []
     for i, model in enumerate(models):
+        model._name = '{}_{}'.format(model._name, i)
         ys.append(model(x))
 
     y = layers.Average()(ys)
@@ -385,7 +380,7 @@ def ensemble(models):
     return model
 
 
-def Model_2(input_shape, output_shape, kfold=1):
+def Model_1(input_shape, output_shape, kfold=1):
     models = [build_model(input_shape, output_shape) for _ in range(kfold)]
     if kfold == 1:
         return models[0]
