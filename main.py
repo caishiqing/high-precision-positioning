@@ -50,7 +50,7 @@ def train(data_file,
 
     if test_size is None:
         test_size = 0
-
+    print(x[:len(y)].shape, y.shape)
     x_train, x_valid, y_train, y_valid = train_test_split(x[:len(y)], y, test_size=test_size)
     train_data = (x_train, y_train)
     if test_size > 0:

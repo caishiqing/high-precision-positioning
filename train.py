@@ -167,14 +167,17 @@ class TrainEngine:
         decay_steps = total_steps - warmup_steps
         return warmup_steps, decay_steps
 
-    def _prepare_train_dataset(self, train_data, unlabel_x=None):
+    def _prepare_train_dataset(self, train_data, valid_data=None, unlabel_x=None):
         num_samples = len(train_data[0])
         train_dataset = tf.data.Dataset.from_tensor_slices(train_data)
         if unlabel_x is not None:
             unlabel_y = np.zeros((len(unlabel_x), 2), dtype=np.float32)
             unlabel_dataset = tf.data.Dataset.from_tensor_slices((unlabel_x, unlabel_y))
-            train_dataset = tf.data.experimental.sample_from_datasets(
-                [train_dataset.repeat(), unlabel_dataset.repeat()], [0.5, 0.5])
+            if valid_data is None:
+                train_dataset = train_dataset.concatenate(unlabel_dataset)
+            else:
+                train_dataset = tf.data.experimental.sample_from_datasets(
+                    [train_dataset.repeat(), unlabel_dataset.repeat()], [0.5, 0.5])
 
         if self.steps_per_epoch is not None:
             train_dataset = train_dataset.repeat().shuffle(num_samples, reshuffle_each_iteration=True)
@@ -184,13 +187,13 @@ class TrainEngine:
 
     def _train(self,
                train_data,
-               valid_data,
+               valid_data=None,
                unlabel_data=None,
                pretrained_path=None):
 
         strategy = self._get_strategy()
         x_train_shape = train_data[0].shape
-        train_dataset = self._prepare_train_dataset(train_data, unlabel_data)
+        train_dataset = self._prepare_train_dataset(train_data, valid_data, unlabel_data)
         valid_dataset = valid_data
 
         with strategy.scope():
