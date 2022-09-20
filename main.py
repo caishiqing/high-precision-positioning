@@ -44,22 +44,25 @@ def train(data_file,
     else:
         svd_weight = None
 
-    if unlabel_pred_file is not None:
-        y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
-        y = np.vstack([y, y_unlabel])
-
     if test_size is None:
-        train_data = (x[:len(y)], y)
+        x_train, y_train = x[:len(y)], y
         valid_data = None
     else:
         x_train, x_valid, y_train, y_valid = train_test_split(x[:len(y)], y, test_size=test_size)
-        train_data = (x_train, y_train)
         valid_data = (x_valid, y_valid)
 
-    if regularize and len(y) < len(x):
+    if unlabel_pred_file is not None:
+        y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
+        y_train = np.vstack([y_train, y_unlabel])
+        x_train = np.vstack([x_train, x[len(y):]])
+
+    train_data = (x_train, y_train)
+    if regularize and not unlabel_pred_file:
         unlabel_data = x[len(y):]
     else:
         unlabel_data = None
+
+    del x
 
     train_engine = TrainEngine(save_path,
                                bs_masks=bs_masks,
