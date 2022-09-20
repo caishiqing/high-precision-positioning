@@ -174,8 +174,10 @@ class TrainEngine:
             unlabel_y = np.zeros((len(unlabel_x), 2), dtype=np.float32)
             unlabel_dataset = tf.data.Dataset.from_tensor_slices((unlabel_x, unlabel_y))
             if valid_data is None:
+                # 无监督学习
                 train_dataset = train_dataset.concatenate(unlabel_dataset)
             else:
+                # 均衡采样
                 train_dataset = tf.data.experimental.sample_from_datasets(
                     [train_dataset.repeat(), unlabel_dataset.repeat()], [0.5, 0.5])
 
