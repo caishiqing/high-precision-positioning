@@ -68,13 +68,13 @@ def mask_loss(loss_fn):
 def compare_loss(pos1, pos2):
     p1 = tf.expand_dims(pos1, 1)
     p2 = tf.expand_dims(pos2, 0)
-    dist = tf.sqrt(tf.keras.losses.mse(p1, p2) + 1e-9) / 10
+    dist = tf.sqrt(tf.keras.losses.mse(p1, p2) + 1e-9)
 
     label = tf.eye(tf.shape(pos1)[0])
     #pd = dist[tf.equal(label, 1)]
     #nd = dist[tf.equal(label, 0)]
 
-    logits = -tf.math.log(dist)
+    logits = -tf.math.log(dist) - 10
     loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
     return tf.reduce_mean(loss)
 
