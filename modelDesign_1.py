@@ -324,7 +324,6 @@ def build_model(input_shape,
 
     x = layers.Input(shape=input_shape)
     h = SVD(x, embed_dim)
-    h = layers.Dense(embed_dim)(h)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
