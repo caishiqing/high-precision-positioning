@@ -380,7 +380,7 @@ def ensemble(models):
     return model
 
 
-def Model_1(input_shape, output_shape, kfold=1):
+def Model_2(input_shape, output_shape, kfold=1):
     models = [build_model(input_shape, output_shape) for _ in range(kfold)]
     if kfold == 1:
         return models[0]
