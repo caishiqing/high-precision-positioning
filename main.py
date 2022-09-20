@@ -49,14 +49,12 @@ def train(data_file,
         y = np.vstack([y, y_unlabel])
 
     if test_size is None:
-        test_size = 0
-    print(x[:len(y)].shape, y.shape)
-    x_train, x_valid, y_train, y_valid = train_test_split(x[:len(y)], y, test_size=test_size)
-    train_data = (x_train, y_train)
-    if test_size > 0:
-        valid_data = (x_valid, y_valid)
-    else:
+        train_data = (x[:len(y)], y)
         valid_data = None
+    else:
+        x_train, x_valid, y_train, y_valid = train_test_split(x[:len(y)], y, test_size=test_size)
+        train_data = (x_train, y_train)
+        valid_data = (x_valid, y_valid)
 
     if regularize and len(y) < len(x):
         unlabel_data = x[len(y):]
