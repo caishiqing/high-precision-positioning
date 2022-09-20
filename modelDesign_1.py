@@ -199,26 +199,26 @@ class AntennaEmbedding(layers.Layer):
         return mask
 
 
-def Conv(x):
-    x = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
-    x1, x2, x3, x4 = layers.Lambda(lambda x: tf.split(x, 4, axis=2))(x)
+# def Conv(x):
+#     x = layers.Lambda(lambda x: tf.transpose(x, [0, 1, 3, 2]))(x)
+#     x1, x2, x3, x4 = layers.Lambda(lambda x: tf.split(x, 4, axis=2))(x)
 
-    x1 = layers.TimeDistributed(layers.Conv1D(128, 61))(x1)
-    x1 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x1)
+#     x1 = layers.TimeDistributed(layers.Conv1D(128, 61))(x1)
+#     x1 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x1)
 
-    x2 = layers.TimeDistributed(layers.Conv1D(64, 61))(x2)
-    x2 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x2)
+#     x2 = layers.TimeDistributed(layers.Conv1D(64, 61))(x2)
+#     x2 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x2)
 
-    x3 = layers.TimeDistributed(layers.Conv1D(32, 61))(x3)
-    x3 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x3)
+#     x3 = layers.TimeDistributed(layers.Conv1D(32, 61))(x3)
+#     x3 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x3)
 
-    x4 = layers.TimeDistributed(layers.Conv1D(16, 61))(x4)
-    x4 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x4)
+#     x4 = layers.TimeDistributed(layers.Conv1D(16, 61))(x4)
+#     x4 = layers.TimeDistributed(layers.GlobalMaxPooling1D())(x4)
 
-    x = layers.Concatenate()([x1, x2, x3, x4])
-    x = layers.LayerNormalization()(x)
-    x = layers.Activation('relu')(x)
-    return x
+#     x = layers.Concatenate()([x1, x2, x3, x4])
+#     x = layers.LayerNormalization()(x)
+#     x = layers.Activation('relu')(x)
+#     return x
 
 
 def Residual(fn, res, dropout=0.0):
@@ -232,7 +232,7 @@ def Residual(fn, res, dropout=0.0):
 def SVD(x, units=256):
     x = layers.TimeDistributed(layers.Flatten())(x)
     x = layers.Masking()(x)
-    x = layers.Dense(units, use_bias=False, name='svd')(x)
+    x = layers.Dense(units, use_bias=False, trainable=False, name='svd')(x)
     return x
 
 
@@ -323,8 +323,7 @@ def build_model(input_shape,
     assert embed_dim % num_heads == 0
 
     x = layers.Input(shape=input_shape)
-    #h = SVD(x, embed_dim)
-    h = Conv(x)
+    h = SVD(x, embed_dim)
     h = layers.Dense(embed_dim)(h)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)

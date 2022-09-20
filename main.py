@@ -39,11 +39,10 @@ def train(data_file,
     print('BS Masks: ', bs_masks)
 
     x, y = load_data(data_file, label_file)
-    # if learn_svd:
-    #     svd_weight = TruncatedSVD(256).fit(x.reshape([len(x) * 72, -1])).components_.T
-    # else:
-    #     svd_weight = None
-    svd_weight = None
+    if learn_svd:
+        svd_weight = TruncatedSVD(256).fit(x.reshape([len(x) * 72, -1])).components_.T
+    else:
+        svd_weight = None
 
     if unlabel_pred_file is not None:
         y_unlabel = np.load(unlabel_pred_file).astype(np.float32).transpose([1, 0])
