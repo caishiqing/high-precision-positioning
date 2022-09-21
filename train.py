@@ -215,7 +215,7 @@ class TrainEngine:
                 model.load_weights(pretrained_path)
             if self.svd_weight is not None:
                 print('Load svd weight!')
-                model.get_layer('wrapper').layer.get_layer('svd').set_weights([self.svd_weight])
+                model.get_layer('svd').set_weights([self.svd_weight])
 
             if valid_data is None:
                 loss = None

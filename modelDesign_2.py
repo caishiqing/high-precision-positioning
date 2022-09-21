@@ -381,7 +381,7 @@ def ensemble(models):
 
 
 def Model_2(input_shape, output_shape, kfold=1):
-    models = [build_model(input_shape, output_shape) for _ in range(kfold)]
+    models = [build_model(input_shape, output_shape, bs_masks=bs_masks) for _ in range(kfold)]
     if kfold == 1:
         return models[0]
 
