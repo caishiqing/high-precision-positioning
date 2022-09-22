@@ -208,8 +208,8 @@ class AntennaEmbedding(layers.Layer):
 
 class BSDropout(layers.Dropout):
     def _get_noise_shape(self, inputs):
-        input_shape = array_ops.shape(inputs)
-        noise_shape=(input_shape[0], input_shape[1], 1)
+        input_shape = tf.shape(inputs)
+        noise_shape = (input_shape[0], input_shape[1], 1)
         return noise_shape
 
     def call(self, inputs, training=None):
