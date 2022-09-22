@@ -300,8 +300,8 @@ def build_model(input_shape,
 
     def _model():
         x = layers.Input(shape=(18, embed_dim))
-        x = BSDropout(dropout)(x)
-        h = layers.Masking()(x)
+        h = BSDropout(dropout)(x)
+        h = layers.Masking()(h)
         h = AntennaEmbedding()(h)
         h = layers.Dense(embed_dim)(h)
         h = layers.LayerNormalization()(h)
