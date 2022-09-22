@@ -291,7 +291,7 @@ def build_model(input_shape,
         h = layers.Activation('relu')(h)
 
         for _ in range(num_attention_layers):
-            h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h, dropout=dropout)
+            h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
             h = Residual(
                 tf.keras.Sequential(
                     layers=[
@@ -299,8 +299,7 @@ def build_model(input_shape,
                         layers.Dense(embed_dim)
                     ]
                 ),
-                h,
-                dropout=dropout
+                h
             )
 
         cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
