@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.python.framework.smart_cond import smart_cond
-from tensorflow.python.ops import array_ops
 
 
 bs_masks = [
