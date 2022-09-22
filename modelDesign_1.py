@@ -207,7 +207,7 @@ class AntennaEmbedding(layers.Layer):
 
 class BSDropout(layers.Dropout):
     def _get_noise_shape(self, inputs):
-        B, S, _ = tf.keras.backend.int_shape(inputs)
+        B, S, _ = tf.shape(inputs)
         return B, S, 1
 
     def call(self, inputs, training=None):
