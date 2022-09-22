@@ -273,7 +273,7 @@ class MyTimeDistributed(layers.TimeDistributed):
 
 def build_model(input_shape,
                 output_shape=2,
-                embed_dim=384,
+                embed_dim=320,
                 hidden_dim=768,
                 num_heads=8,
                 num_attention_layers=5,
