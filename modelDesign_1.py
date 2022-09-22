@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.python.framework.smart_cond import smart_cond
+from tensorflow.python.ops import array_ops
 
 
 bs_masks = [
@@ -207,7 +208,7 @@ class AntennaEmbedding(layers.Layer):
 
 class BSDropout(layers.Dropout):
     def _get_noise_shape(self, inputs):
-        B, S, _ = tf.shape(inputs)
+        B, S, _ = array_ops.shape(inputs)
         return B, S, 1
 
     def call(self, inputs, training=None):
