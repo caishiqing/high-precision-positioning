@@ -175,8 +175,10 @@ class TrainEngine:
                 train_dataset = train_dataset.concatenate(unlabel_dataset)
             else:
                 # 均衡采样
+                regularize_weight = self.regularize if self.regularize else 0.5
                 train_dataset = tf.data.experimental.sample_from_datasets(
-                    [train_dataset.repeat(), unlabel_dataset.repeat()], [0.5, 0.5])
+                    [train_dataset.repeat(), unlabel_dataset.repeat()],
+                    [1-regularize_weight, regularize_weight])
 
         if self.steps_per_epoch is not None:
             train_dataset = train_dataset.repeat().shuffle(num_samples, reshuffle_each_iteration=True)

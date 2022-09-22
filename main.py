@@ -24,7 +24,7 @@ def train(data_file,
           test_size=None,
           mask_mode=None,
           learn_svd=False,
-          regularize=False,
+          regularize=None,
           **kwargs):
 
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
@@ -40,7 +40,7 @@ def train(data_file,
 
     x, y = load_data(data_file, label_file)
     if learn_svd:
-        svd_weight = TruncatedSVD(kwargs.pop('embed_dim', 256) // 4).fit(x.reshape([len(x) * 72, -1])).components_.T
+        svd_weight = TruncatedSVD(kwargs.get('embed_dim', 256) // 4).fit(x.reshape([len(x) * 72, -1])).components_.T
     else:
         svd_weight = None
 

@@ -272,10 +272,10 @@ class MyTimeDistributed(layers.TimeDistributed):
 
 def build_model(input_shape,
                 output_shape=2,
-                embed_dim=256,
-                hidden_dim=1024,
+                embed_dim=384,
+                hidden_dim=768,
                 num_heads=8,
-                num_attention_layers=6,
+                num_attention_layers=5,
                 dropout=0.0,
                 bs_masks=None,
                 norm_size=120):
@@ -319,8 +319,8 @@ def build_model(input_shape,
     h = layers.Reshape([18, 4, -1])(h)
     h = layers.Reshape([18, -1])(h)
 
-    base_model = _model()
     model_wrapper = tf.keras.Sequential()
+    model_wrapper.add(layers.Input(shape=(18, embed_dim)))
     model_wrapper.add(MultiHeadBS(bs_masks, 18, name='mask')),
     model_wrapper.add(MyTimeDistributed(_model(), 18, 3, name='wrapper'))
     model_wrapper.add(layers.GlobalAveragePooling1D())
