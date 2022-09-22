@@ -17,6 +17,14 @@ bs_masks = [
 ]
 
 
+def Residual(fn, res, dropout=0.0):
+    x = fn(res)
+    x = layers.Dropout(dropout)(x)
+    x = layers.Add()([res, x])
+    x = layers.LayerNormalization()(x)
+    return x
+
+
 class MultiHeadAttention(layers.Layer):
     def __init__(self,
                  num_heads,
@@ -192,18 +200,26 @@ class AntennaEmbedding(layers.Layer):
         if mask is None:
             return None
 
-        #cls_mask = tf.cast(tf.ones(shape=(tf.shape(mask)[0], 1)), mask.dtype)
         cls_mask = tf.ones_like(mask, dtype=mask.dtype)[:, :1]
         mask = tf.concat([cls_mask, mask], axis=1)
         return mask
 
 
-def Residual(fn, res, dropout=0.0):
-    x = fn(res)
-    x = layers.Dropout(dropout)(x)
-    x = layers.Add()([res, x])
-    x = layers.LayerNormalization()(x)
-    return x
+class BSDropout(layers.Dropout):
+    def _get_noise_shape(self, inputs):
+        B, S, _ = tf.keras.backend.int_shape(inputs)
+        return B, S, 1
+
+    def call(self, inputs, training=None):
+        if training is None:
+            training = tf.keras.backend.learning_phase()
+
+        def _train():
+            x = super(BSDropout, self).call(inputs, training=True)
+            x *= self.rate
+            return x
+
+        return smart_cond(training, _train, lambda: inputs)
 
 
 class MultiHeadBS(layers.Layer):
@@ -284,6 +300,7 @@ def build_model(input_shape,
 
     def _model():
         x = layers.Input(shape=(18, embed_dim))
+        x = BSDropout(dropout)(x)
         h = layers.Masking()(x)
         h = AntennaEmbedding()(h)
         h = layers.Dense(embed_dim)(h)
@@ -291,7 +308,7 @@ def build_model(input_shape,
         h = layers.Activation('relu')(h)
 
         for _ in range(num_attention_layers):
-            h = Residual(SelfAttention(num_heads, embed_dim, dropout=dropout), h)
+            h = Residual(SelfAttention(num_heads, embed_dim), h)
             h = Residual(
                 tf.keras.Sequential(
                     layers=[
