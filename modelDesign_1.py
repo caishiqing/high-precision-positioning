@@ -232,7 +232,7 @@ class SVD(layers.Layer):
     def build(self, input_shape):
         self.flatten = layers.TimeDistributed(layers.Flatten())
         self.reshape = layers.Reshape([self.num_bs, -1])
-        self.transform = layers.Dense(self.units, trainable=False)
+        self.transform = layers.Dense(self.units, use_bias=False, trainable=False)
         self.built = True
 
     def call(self, inputs):
