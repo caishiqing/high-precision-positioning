@@ -223,6 +223,33 @@ class BSDropout(layers.Dropout):
         return smart_cond(training, _train, lambda: inputs)
 
 
+class SVD(layers.Layer):
+    def __init__(self, units, num_bs=18, name='svd', **kwargs):
+        super(SVD, self).__init__(name=name, **kwargs)
+        self.units = units
+        self.num_bs = num_bs
+
+    def build(self, input_shape):
+        self.flatten = layers.TimeDistributed(layers.Flatten())
+        self.reshape1 = layers.Reshape([self.num_bs, 4, -1])
+        self.reshape2 = layers.Reshape([self.num_bs, -1])
+        self.transform = layers.Dense(self.units, use_bias=False, trainable=False)
+        self.built = True
+
+    def call(self, inputs):
+        x = self.flatten(inputs)
+        x = self.transform(x)
+        x = self.reshape1(x)
+        x = self.reshape2(x)
+        return x
+
+    def get_config(self):
+        config = super().get_config()
+        config['units'] = self.units
+        config['num_bs'] = self.num_bs
+        return config
+
+
 class MultiHeadBS(layers.Layer):
     def __init__(self,
                  bs_masks=None,
@@ -287,61 +314,71 @@ class MyTimeDistributed(layers.TimeDistributed):
         return config
 
 
+def build_base_model(embed_dim, hidden_dim,
+                     output_shape=2,
+                     num_bs=18,
+                     dropout=0.0,
+                     num_heads=8,
+                     num_attention_layers=5,
+                     norm_size=[120, 60]):
+
+    norm_size = np.asarray([norm_size], dtype=np.float32)
+    x = layers.Input(shape=(num_bs, embed_dim))
+    #h = BSDropout(dropout)(x)
+    h = layers.Masking()(x)
+    h = AntennaEmbedding()(h)
+    h = layers.Dense(embed_dim)(h)
+    h = layers.LayerNormalization()(h)
+    h = layers.Activation('relu')(h)
+
+    for _ in range(num_attention_layers):
+        h = Residual(SelfAttention(num_heads, embed_dim), h)
+        h = Residual(
+            tf.keras.Sequential(
+                layers=[
+                    layers.Dense(hidden_dim, activation='relu'),
+                    layers.Dense(embed_dim)
+                ]
+            ),
+            h
+        )
+
+    cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
+    y_ = layers.Dense(output_shape, activation='sigmoid')(cls_h)
+    y = layers.Lambda(lambda x: x * 120, name='pos')(y_)
+    model = tf.keras.Model(x, y)
+    return model
+
+
 def build_model(input_shape,
                 output_shape=2,
                 embed_dim=320,
-                hidden_dim=768,
+                hidden_dim=800,
                 num_heads=8,
                 num_attention_layers=5,
                 dropout=0.0,
                 bs_masks=None,
-                norm_size=120):
+                num_bs=18,
+                norm_size=[120, 60]):
 
     assert embed_dim % num_heads == 0
 
-    def _model():
-        x = layers.Input(shape=(18, embed_dim))
-        h = BSDropout(dropout)(x)
-        h = layers.Masking()(h)
-        h = AntennaEmbedding()(h)
-        h = layers.Dense(embed_dim)(h)
-        h = layers.LayerNormalization()(h)
-        h = layers.Activation('relu')(h)
-
-        for _ in range(num_attention_layers):
-            h = Residual(SelfAttention(num_heads, embed_dim), h)
-            h = Residual(
-                tf.keras.Sequential(
-                    layers=[
-                        layers.Dense(hidden_dim, activation='relu'),
-                        layers.Dense(embed_dim)
-                    ]
-                ),
-                h
-            )
-
-        cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
-        y_ = layers.Dense(output_shape, activation='sigmoid')(cls_h)
-        y = layers.Lambda(lambda x: x * norm_size, name='pos')(y_)
-        model = tf.keras.Model(x, y)
-        return model
-
-    x = layers.Input(shape=input_shape)
-    h = layers.TimeDistributed(layers.Flatten())(x)
-    h = layers.Dense(embed_dim // 4,
-                     use_bias=False,
-                     trainable=False,
-                     name='svd')(h)
-
-    h = layers.Reshape([18, 4, -1])(h)
-    h = layers.Reshape([18, -1])(h)
+    base_model = build_base_model(embed_dim, hidden_dim,
+                                  output_shape=output_shape,
+                                  num_bs=num_bs,
+                                  dropout=dropout,
+                                  num_heads=num_heads,
+                                  num_attention_layers=num_attention_layers,
+                                  norm_size=norm_size)
 
     model_wrapper = tf.keras.Sequential()
-    model_wrapper.add(layers.Input(shape=(18, embed_dim)))
-    model_wrapper.add(MultiHeadBS(bs_masks, 18, name='mask')),
-    model_wrapper.add(MyTimeDistributed(_model(), 18, 3, name='wrapper'))
+    model_wrapper.add(layers.Input(shape=(num_bs, embed_dim)))
+    model_wrapper.add(MultiHeadBS(bs_masks, num_bs, name='mask')),
+    model_wrapper.add(MyTimeDistributed(base_model, num_bs, 3, name='wrapper'))
     model_wrapper.add(layers.GlobalAveragePooling1D())
 
+    x = layers.Input(shape=input_shape)
+    h = SVD(embed_dim // 4, num_bs, name='svd', trainable=False)(x)
     y = model_wrapper(h)
     model = tf.keras.Model(x, y)
     return model
@@ -352,6 +389,8 @@ tf.keras.utils.get_custom_objects().update(
         'MultiHeadAttention': MultiHeadAttention,
         'SelfAttention': SelfAttention,
         'AntennaEmbedding': AntennaEmbedding,
+        'BSDropout': BSDropout,
+        'SVD': SVD,
         'MultiHeadBS': MultiHeadBS,
         'MyTimeDistributed': MyTimeDistributed
     }
