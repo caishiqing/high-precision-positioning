@@ -29,6 +29,7 @@ def train(data_file,
 
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     tf.config.threading.set_inter_op_parallelism_threads(4)
+    print(kwargs)
 
     if mask_mode is None:
         bs_masks = None
@@ -77,7 +78,7 @@ def train(data_file,
                                monitor=kwargs.pop('monitor', 'val_loss'),
                                verbose=kwargs.pop('verbose', 1),
                                **kwargs)
-
+    print(kwargs)
     train_process = Process(target=train_engine,
                             args=(train_data, valid_data, unlabel_data, pretrained_path))
 
