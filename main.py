@@ -63,7 +63,7 @@ def train(data_file,
         unlabel_data = None
 
     del x
-
+    print(regularize, unlabel_data)
     train_engine = TrainEngine(save_path,
                                bs_masks=bs_masks,
                                svd_weight=svd_weight,
