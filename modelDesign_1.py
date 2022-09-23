@@ -343,9 +343,9 @@ def build_base_model(embed_dim, hidden_dim,
             h
         )
 
-    h = layers.Lambda(lambda x: x[:, 0, :])(h)
-    y_ = layers.Dense(output_shape, activation='sigmoid')(h)
-    y = layers.Lambda(lambda x: x * tf.identity(norm_size), name='pos')(y_)
+    cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
+    y_ = layers.Dense(output_shape, activation='sigmoid')(cls_h)
+    y = layers.Lambda(lambda x: x * 120, name='pos')(y_)
     model = tf.keras.Model(x, y)
     return model
 
