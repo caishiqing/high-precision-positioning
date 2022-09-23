@@ -231,14 +231,16 @@ class SVD(layers.Layer):
 
     def build(self, input_shape):
         self.flatten = layers.TimeDistributed(layers.Flatten())
-        self.reshape = layers.Reshape([self.num_bs, -1])
+        self.reshape1 = layers.Reshape([self.num_bs, 4, -1])
+        self.reshape2 = layers.Reshape([self.num_bs, -1])
         self.transform = layers.Dense(self.units, use_bias=False, trainable=False)
         self.built = True
 
     def call(self, inputs):
         x = self.flatten(inputs)
         x = self.transform(x)
-        x = self.reshape(x)
+        x = self.reshape1(x)
+        x = self.reshape2(x)
         return x
 
     def get_config(self):
@@ -369,15 +371,14 @@ def build_model(input_shape,
                                   num_attention_layers=num_attention_layers,
                                   norm_size=norm_size)
 
-    x = layers.Input(shape=input_shape)
-    h = SVD(embed_dim // 4, num_bs, name='svd', trainable=False)(x)
-
     model_wrapper = tf.keras.Sequential()
     model_wrapper.add(layers.Input(shape=(num_bs, embed_dim)))
     model_wrapper.add(MultiHeadBS(bs_masks, num_bs, name='mask')),
     model_wrapper.add(MyTimeDistributed(base_model, num_bs, 3, name='wrapper'))
     model_wrapper.add(layers.GlobalAveragePooling1D())
 
+    x = layers.Input(shape=input_shape)
+    h = SVD(embed_dim // 4, num_bs, name='svd', trainable=False)(x)
     y = model_wrapper(h)
     model = tf.keras.Model(x, y)
     return model
