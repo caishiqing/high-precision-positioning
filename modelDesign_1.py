@@ -223,33 +223,6 @@ class BSDropout(layers.Dropout):
         return smart_cond(training, _train, lambda: inputs)
 
 
-class SVD(layers.Layer):
-    def __init__(self, units, num_bs=18, name='svd', **kwargs):
-        super(SVD, self).__init__(name=name, **kwargs)
-        self.units = units
-        self.num_bs = num_bs
-
-    def build(self, input_shape):
-        self.flatten = layers.TimeDistributed(layers.Flatten())
-        self.reshape1 = layers.Reshape([self.num_bs, 4, -1])
-        self.reshape2 = layers.Reshape([self.num_bs, -1])
-        self.transform = layers.Dense(self.units, use_bias=False, trainable=False)
-        self.built = True
-
-    def call(self, inputs):
-        x = self.flatten(inputs)
-        x = self.transform(x)
-        x = self.reshape1(x)
-        x = self.reshape2(x)
-        return x
-
-    def get_config(self):
-        config = super().get_config()
-        config['units'] = self.units
-        config['num_bs'] = self.num_bs
-        return config
-
-
 class MultiHeadBS(layers.Layer):
     def __init__(self,
                  bs_masks=None,
@@ -329,7 +302,7 @@ def build_base_model(embed_dim, hidden_dim,
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
-    h = layers.Activation('relu')(h)
+    h = layers.Activation('tanh')(h)
 
     for _ in range(num_attention_layers):
         h = Residual(SelfAttention(num_heads, embed_dim), h)
@@ -343,9 +316,9 @@ def build_base_model(embed_dim, hidden_dim,
             h
         )
 
-    cls_h = layers.Lambda(lambda x: x[:, 0, :])(h)
-    y_ = layers.Dense(output_shape, activation='sigmoid')(cls_h)
-    y = layers.Lambda(lambda x: x * 120, name='pos')(y_)
+    h = layers.Lambda(lambda x: x[:, 0, :])(h)
+    y_ = layers.Dense(output_shape, activation='sigmoid')(h)
+    y = layers.Lambda(lambda x: x * tf.identity(norm_size), name='pos')(y_)
     model = tf.keras.Model(x, y)
     return model
 
@@ -363,6 +336,11 @@ def build_model(input_shape,
 
     assert embed_dim % num_heads == 0
 
+    preprocess = tf.keras.Sequential(name='svd', trainable=False)
+    preprocess.add(layers.TimeDistributed(layers.Flatten()))
+    preprocess.add(layers.Dense(embed_dim // 4, use_bias=False))
+    preprocess.add(layers.Reshape([num_bs, -1]))
+
     base_model = build_base_model(embed_dim, hidden_dim,
                                   output_shape=output_shape,
                                   num_bs=num_bs,
@@ -378,7 +356,7 @@ def build_model(input_shape,
     model_wrapper.add(layers.GlobalAveragePooling1D())
 
     x = layers.Input(shape=input_shape)
-    h = SVD(embed_dim // 4, num_bs, name='svd', trainable=False)(x)
+    h = preprocess(x)
     y = model_wrapper(h)
     model = tf.keras.Model(x, y)
     return model
@@ -418,6 +396,11 @@ def Model_1(input_shape, output_shape, kfold=1):
 
 
 if __name__ == '__main__':
-    model = Model_1((72, 2, 256), 2)
-    model.load_weights('modelSubmit_1.h5')
-    model.save('modelSubmit_1.h5', include_optimizer=False)
+    # model = Model_1((72, 2, 256), 2)
+    # model.load_weights('modelSubmit_1.h5')
+    # model.save('modelSubmit_1.h5', include_optimizer=False)
+
+    drop = BSDropout(0.5)
+    x = tf.random.uniform((1, 8, 4))
+    print(drop(x, training=True))
+    pass
