@@ -181,7 +181,6 @@ class TrainEngine:
                     [train_dataset.repeat(), unlabel_dataset.repeat()],
                     [1-regularize_weight, regularize_weight])
 
-        print(num_samples)
         if self.steps_per_epoch is not None:
             train_dataset = train_dataset.repeat().shuffle(num_samples, reshuffle_each_iteration=True)
 
