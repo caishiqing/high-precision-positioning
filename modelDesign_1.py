@@ -298,8 +298,8 @@ def build_base_model(embed_dim, hidden_dim,
 
     norm_size = np.asarray([norm_size], dtype=np.float32)
     x = layers.Input(shape=(num_bs, embed_dim))
-    h = BSDropout(dropout)(x)
-    h = layers.Masking()(h)
+    #h = BSDropout(dropout)(x)
+    h = layers.Masking()(x)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
@@ -350,7 +350,7 @@ def build_model(input_shape,
                                   num_attention_layers=num_attention_layers,
                                   norm_size=norm_size)
 
-    model_wrapper = tf.keras.Sequential()
+    model_wrapper = tf.keras.Sequential(name='augment_wrapper')
     model_wrapper.add(layers.Input(shape=(num_bs, embed_dim)))
     model_wrapper.add(MultiHeadBS(bs_masks, num_bs, name='mask')),
     model_wrapper.add(MyTimeDistributed(base_model, num_bs, 3, name='wrapper'))
