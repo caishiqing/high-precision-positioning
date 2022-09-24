@@ -220,7 +220,8 @@ class BSDropout(layers.Dropout):
             x *= self.rate
             return x
 
-        return smart_cond(training, _train, lambda: inputs)
+        x = smart_cond(training, _train, lambda: inputs)
+        return x
 
 
 class MultiHeadBS(layers.Layer):
@@ -297,8 +298,8 @@ def build_base_model(embed_dim, hidden_dim,
 
     norm_size = np.asarray([norm_size], dtype=np.float32)
     x = layers.Input(shape=(num_bs, embed_dim))
-    #h = BSDropout(dropout)(x)
-    h = layers.Masking()(x)
+    h = BSDropout(dropout)(x)
+    h = layers.Masking()(h)
     h = AntennaEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
@@ -336,9 +337,9 @@ def build_model(input_shape,
 
     assert embed_dim % num_heads == 0
 
-    preprocess = tf.keras.Sequential(name='svd', trainable=False)
+    preprocess = tf.keras.Sequential(name='svd')
     preprocess.add(layers.TimeDistributed(layers.Flatten()))
-    preprocess.add(layers.Dense(embed_dim // 4, use_bias=False))
+    preprocess.add(layers.Dense(embed_dim // 4, use_bias=False, trainable=False))
     preprocess.add(layers.Reshape([num_bs, -1]))
 
     base_model = build_base_model(embed_dim, hidden_dim,
@@ -400,6 +401,9 @@ if __name__ == '__main__':
     # model.save('modelSubmit_1.h5', include_optimizer=False)
 
     drop = BSDropout(0.5)
-    x = tf.random.uniform((1, 8, 4))
-    print(drop(x, training=True))
+    x = np.random.random((1, 72, 2, 32))
+    x[0, :4] = 0
+    x = tf.constant(x)
+    model = build_model((72, 2, 32), embed_dim=8, dropout=0.5)
+    model(x, training=True)
     pass
