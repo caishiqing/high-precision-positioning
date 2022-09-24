@@ -336,10 +336,11 @@ def build_model(input_shape,
                 norm_size=[120, 60]):
 
     assert embed_dim % num_heads == 0
+    num_antenna_per_bs = input_shape[0] // num_bs
 
     preprocess = tf.keras.Sequential(name='svd')
     preprocess.add(layers.TimeDistributed(layers.Flatten()))
-    preprocess.add(layers.Dense(embed_dim // 4, use_bias=False, trainable=False))
+    preprocess.add(layers.Dense(embed_dim // num_antenna_per_bs, use_bias=False, trainable=False))
     preprocess.add(layers.Reshape([num_bs, -1]))
 
     base_model = build_base_model(embed_dim, hidden_dim,
