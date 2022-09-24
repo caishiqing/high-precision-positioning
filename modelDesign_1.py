@@ -368,7 +368,6 @@ tf.keras.utils.get_custom_objects().update(
         'SelfAttention': SelfAttention,
         'AntennaEmbedding': AntennaEmbedding,
         'BSDropout': BSDropout,
-        'SVD': SVD,
         'MultiHeadBS': MultiHeadBS,
         'MyTimeDistributed': MyTimeDistributed
     }
