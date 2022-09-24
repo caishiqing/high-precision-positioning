@@ -212,16 +212,16 @@ class BSDropout(layers.Dropout):
         return noise_shape
 
     def call(self, inputs, training=None):
-        # if training is None:
-        #     training = tf.keras.backend.learning_phase()
+        if training is None:
+            training = tf.keras.backend.learning_phase()
 
-        # def _train():
-        #     x = super(BSDropout, self).call(inputs, training=True)
-        #     x *= self.rate
-        #     return x
+        def _train():
+            x = super(BSDropout, self).call(inputs, training=True)
+            keep_prob = 1 - self.rate
+            x *= keep_prob
+            return x
 
-        # x = smart_cond(training, _train, lambda: inputs)
-        return inputs
+        return smart_cond(training, _train, lambda: inputs)
 
 
 class MultiHeadBS(layers.Layer):
@@ -396,21 +396,6 @@ def Model_1(input_shape, output_shape, kfold=1):
 
 
 if __name__ == '__main__':
-    # model = Model_1((72, 2, 256), 2)
-    # model.load_weights('modelSubmit_1.h5')
-    # model.save('modelSubmit_1.h5', include_optimizer=False)
-
-    preprocess = tf.keras.Sequential(name='svd')
-    preprocess.add(layers.TimeDistributed(layers.Flatten()))
-    preprocess.add(layers.Dense(8 // 4, use_bias=False, trainable=False))
-    preprocess.add(layers.Reshape([18, -1]))
-
-    drop = BSDropout(0.5)
-    x = np.random.random((1, 72, 2, 32))
-    x[0, :4] = 0
-    x = tf.constant(x)
-    h = preprocess(x)
-
-    model = build_base_model(8, 32, dropout=0.5)
-    y = model(h)
-    pass
+    model = Model_1((72, 2, 256), 2)
+    model.load_weights('modelSubmit_1.h5')
+    model.save('modelSubmit_1.h5', include_optimizer=False)
