@@ -168,9 +168,9 @@ class SelfAttention(MultiHeadAttention):
         return mask
 
 
-class AntennaEmbedding(layers.Layer):
+class BSEmbedding(layers.Layer):
     def __init__(self, **kwargs):
-        super(AntennaEmbedding, self).__init__(**kwargs)
+        super(BSEmbedding, self).__init__(**kwargs)
         self.supports_masking = True
 
     def build(self, input_shape):
@@ -300,7 +300,7 @@ def build_base_model(embed_dim, hidden_dim,
     x = layers.Input(shape=(num_bs, embed_dim))
     h = BSDropout(dropout)(x)
     h = layers.Masking()(h)
-    h = AntennaEmbedding()(h)
+    h = BSEmbedding()(h)
     h = layers.Dense(embed_dim)(h)
     h = layers.LayerNormalization()(h)
     h = layers.Activation('tanh')(h)
@@ -367,7 +367,7 @@ tf.keras.utils.get_custom_objects().update(
     {
         'MultiHeadAttention': MultiHeadAttention,
         'SelfAttention': SelfAttention,
-        'AntennaEmbedding': AntennaEmbedding,
+        'BSEmbedding': BSEmbedding,
         'BSDropout': BSDropout,
         'MultiHeadBS': MultiHeadBS,
         'MyTimeDistributed': MyTimeDistributed
