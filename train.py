@@ -166,6 +166,7 @@ class TrainEngine:
 
     def _prepare_train_dataset(self, train_data, valid_data=None, unlabel_x=None):
         num_samples = len(train_data[0])
+        print(num_samples)
         train_dataset = tf.data.Dataset.from_tensor_slices(train_data)
         if unlabel_x is not None:
             unlabel_y = np.zeros((len(unlabel_x), 2), dtype=np.float32)
