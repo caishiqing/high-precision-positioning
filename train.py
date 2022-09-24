@@ -166,9 +166,9 @@ class TrainEngine:
 
     def _prepare_train_dataset(self, train_data, valid_data=None, unlabel_x=None):
         num_samples = len(train_data[0])
-        print(num_samples)
         train_dataset = tf.data.Dataset.from_tensor_slices(train_data)
         if unlabel_x is not None:
+            num_samples += len(unlabel_x)
             unlabel_y = np.zeros((len(unlabel_x), 2), dtype=np.float32)
             unlabel_dataset = tf.data.Dataset.from_tensor_slices((unlabel_x, unlabel_y))
             if valid_data is None:
@@ -181,6 +181,7 @@ class TrainEngine:
                     [train_dataset.repeat(), unlabel_dataset.repeat()],
                     [1-regularize_weight, regularize_weight])
 
+        print(num_samples)
         if self.steps_per_epoch is not None:
             train_dataset = train_dataset.repeat().shuffle(num_samples, reshuffle_each_iteration=True)
 
