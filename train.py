@@ -76,17 +76,28 @@ def compare_loss(pos1, pos2):
     return tf.reduce_mean(loss)
 
 
+# def train_step(cls, data):
+#     x, y = data
+#     with tf.GradientTape() as tape:
+#         y_pred = cls(x, training=True)
+#         y_augm = cls(x, training=True)
+#         pos_loss = cls.compiled_loss(y, y_pred)
+#         cmp_loss = compare_loss(y_pred, y_augm)
+#         loss = pos_loss + cmp_loss
+
+#     cls.optimizer.minimize(loss, cls.trainable_variables, tape=tape)
+#     return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss}
+
 def train_step(cls, data):
     x, y = data
     with tf.GradientTape() as tape:
         y_pred = cls(x, training=True)
-        y_augm = cls(x, training=True)
         pos_loss = cls.compiled_loss(y, y_pred)
-        cmp_loss = compare_loss(y_pred, y_augm)
-        loss = pos_loss + cmp_loss
+        reg_loss = cls.losses[0]
+        loss = pos_loss + reg_loss
 
     cls.optimizer.minimize(loss, cls.trainable_variables, tape=tape)
-    return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss}
+    return {'pos_loss': pos_loss, 'reg_loss': reg_loss}
 
 
 def save_model(cls, filepath, **kwargs):
