@@ -87,7 +87,7 @@ def train_step(cls, data):
         loss = pos_loss + 0.5 * cmp_loss + 0.5 * reg_loss
 
     cls.optimizer.minimize(loss, cls.trainable_variables, tape=tape)
-    return {'pos_loss': pos_loss, 'reg_loss': reg_loss}
+    return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss, 'reg_loss': reg_loss}
 
 
 def save_model(cls, filepath, **kwargs):
