@@ -288,15 +288,21 @@ class MyTimeDistributed(layers.TimeDistributed):
         return config
 
 
+def uniform_loss(pos):
+    anchor = tf.cast(tf.linspace(0, 1, 256), pos.dtype)
+    pos = tf.keras.backend.flatten(pos)
+    dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + 1e-5
+    loss = tf.reduce_sum((tf.nn.softmax(1/dist, axis=0) + tf.nn.softmax(1/dist, 1)) * dist)
+    return loss
+
+
 def build_base_model(embed_dim, hidden_dim,
                      output_shape=2,
                      num_bs=18,
                      dropout=0.0,
                      num_heads=8,
-                     num_attention_layers=5,
-                     norm_size=[120, 60]):
+                     num_attention_layers=5):
 
-    norm_size = np.asarray([norm_size], dtype=np.float32)
     x = layers.Input(shape=(num_bs, embed_dim))
     h = BSDropout(dropout)(x)
     h = layers.Masking()(h)
@@ -318,8 +324,7 @@ def build_base_model(embed_dim, hidden_dim,
         )
 
     h = layers.Lambda(lambda x: x[:, 0, :])(h)
-    y_ = layers.Dense(output_shape, activation='sigmoid')(h)
-    y = layers.Lambda(lambda x: x * tf.identity(norm_size), name='pos')(y_)
+    y = layers.Dense(output_shape, activation='sigmoid')(h)
     model = tf.keras.Model(x, y)
     return model
 
@@ -337,6 +342,7 @@ def build_model(input_shape,
 
     assert embed_dim % num_heads == 0
     num_antenna_per_bs = input_shape[0] // num_bs
+    norm_size = np.asarray([norm_size], dtype=np.float32)
 
     preprocess = tf.keras.Sequential(name='svd')
     preprocess.add(layers.TimeDistributed(layers.Flatten()))
@@ -348,8 +354,7 @@ def build_model(input_shape,
                                   num_bs=num_bs,
                                   dropout=dropout,
                                   num_heads=num_heads,
-                                  num_attention_layers=num_attention_layers,
-                                  norm_size=norm_size)
+                                  num_attention_layers=num_attention_layers)
 
     model_wrapper = tf.keras.Sequential(name='augment_wrapper')
     model_wrapper.add(layers.Input(shape=(num_bs, embed_dim)))
@@ -359,8 +364,10 @@ def build_model(input_shape,
 
     x = layers.Input(shape=input_shape)
     h = preprocess(x)
-    y = model_wrapper(h)
+    y_ = model_wrapper(h)
+    y = layers.Lambda(lambda x: x * tf.identity(norm_size), name='pos')(y_)
     model = tf.keras.Model(x, y)
+    model.add_loss(uniform_loss(y_))
     return model
 
 
