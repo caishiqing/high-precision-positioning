@@ -208,6 +208,7 @@ class TrainEngine:
             model = build_model(x_train_shape[1:], 2,
                                 dropout=self.dropout,
                                 bs_masks=self.bs_masks,
+                                regularize=bool(self.regularize),
                                 **self.model_params)
 
             model.save = types.MethodType(save_model, model)
