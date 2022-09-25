@@ -109,7 +109,7 @@ def train_kfold(data_file,
 
     x, y = load_data(data_file, label_file)
     if learn_svd:
-        svd_weight = TruncatedSVD(kwargs.get('embed_dim', 256) // 4).fit(x.reshape([len(x) * 72, -1])).components_.T
+        svd_weight = TruncatedSVD(kwargs.get('embed_dim', 320) // 4).fit(x.reshape([len(x) * 72, -1])).components_.T
     else:
         svd_weight = None
 
