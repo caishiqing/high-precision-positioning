@@ -357,6 +357,7 @@ def build_model(input_shape,
     x = layers.Input(shape=input_shape)
     h = preprocess(x)
     y_ = model_wrapper(h)
+    print(y_)
     y = layers.Lambda(lambda x: x * tf.identity(norm_size), name='pos')(y_)
     model = tf.keras.Model(x, y)
 

@@ -222,6 +222,7 @@ class TrainEngine:
 
             model.save = types.MethodType(save_model, model)
             if self.regularize:
+                print(model.get_layer('augment_wrapper').output)
                 model.add_loss(model.get_layer('augment_wrapper').output)
                 model.train_step = types.MethodType(train_step, model)
 
