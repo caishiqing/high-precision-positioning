@@ -94,7 +94,7 @@ def train_step(cls, data):
         pos_loss = cls.compiled_loss(y, y_pred)
         cmp_loss = compare_loss(y_pred, y_augm)
         reg_loss = cls.losses[0]
-        loss = pos_loss + cmp_loss  # + reg_loss
+        loss = pos_loss + cmp_loss + reg_loss
 
     cls.optimizer.minimize(loss, cls.trainable_variables, tape=tape)
     return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss, 'reg_loss': reg_loss}
