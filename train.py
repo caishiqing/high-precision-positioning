@@ -80,7 +80,8 @@ def uniform_loss(pos, anchor_size=256, scale=100):
     anchor = tf.cast(tf.linspace(0, 1, anchor_size), pos.dtype)
     pos = tf.keras.backend.flatten(pos)
     dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + 1e-5
-    loss = tf.reduce_sum(tf.reduce_sum(tf.nn.softmax(1/dist, 0) * dist, axis=0))
+    #loss = tf.reduce_sum(tf.reduce_sum(tf.nn.softmax(1/dist, 0) * dist, axis=0))
+    loss = tf.reduce_sum((tf.nn.softmax(1/dist, 0) + tf.nn.softmax(1/dist, 1)) * dist)
     return loss
 
 
