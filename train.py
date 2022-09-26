@@ -75,8 +75,7 @@ def compare_loss(pos1, pos2):
 
     pd = dist[tf.equal(label, 1)]
     nd = dist[tf.equal(label, 0)]
-    nd = tf.boolean_mask(nd, tf.less_equal(nd, 0.5))
-    loss = tf.math.log1p(tf.reduce_sum(pd) * tf.reduce_sum(1 / nd))
+    loss = tf.math.log1p(tf.reduce_mean(pd) * tf.reduce_mean(1 / nd))
     return tf.reduce_mean(loss)
 
 
