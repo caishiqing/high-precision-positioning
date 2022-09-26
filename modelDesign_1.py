@@ -348,16 +348,15 @@ def build_model(input_shape,
                                   num_heads=num_heads,
                                   num_attention_layers=num_attention_layers)
 
-    model_wrapper = tf.keras.Sequential(name='augment_wrapper')
-    model_wrapper.add(layers.Input(shape=(num_bs, embed_dim)))
-    model_wrapper.add(MultiHeadBS(bs_masks, num_bs, name='mask')),
-    model_wrapper.add(MyTimeDistributed(base_model, num_bs, 3, name='wrapper'))
-    model_wrapper.add(layers.GlobalAveragePooling1D())
+    augment_wrapper = tf.keras.Sequential(name='augment_wrapper')
+    augment_wrapper.add(layers.Input(shape=(num_bs, embed_dim)))
+    augment_wrapper.add(MultiHeadBS(bs_masks, num_bs, name='mask')),
+    augment_wrapper.add(MyTimeDistributed(base_model, num_bs, 3, name='wrapper'))
+    augment_wrapper.add(layers.GlobalAveragePooling1D())
 
     x = layers.Input(shape=input_shape)
     h = preprocess(x)
-    y_ = model_wrapper(h)
-    print(y_)
+    y_ = augment_wrapper(h)
     y = layers.Lambda(lambda x: x * tf.identity(norm_size), name='pos')(y_)
     model = tf.keras.Model(x, y)
 
