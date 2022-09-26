@@ -222,7 +222,7 @@ class TrainEngine:
 
             model.save = types.MethodType(save_model, model)
             if self.regularize:
-                model.add_loss(model.get_layer('pos').input)
+                model.add_loss(uniform_loss(model.get_layer('pos').input))
                 model.train_step = types.MethodType(train_step, model)
 
             if pretrained_path is not None:
