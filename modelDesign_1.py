@@ -288,14 +288,6 @@ class MyTimeDistributed(layers.TimeDistributed):
         return config
 
 
-def uniform_loss(pos):
-    anchor = tf.cast(tf.linspace(0, 1, 256), pos.dtype)
-    pos = tf.keras.backend.flatten(pos)
-    dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + 1e-5
-    loss = tf.reduce_sum((tf.nn.softmax(1/dist, axis=0) + tf.nn.softmax(1/dist, 1)) * dist)
-    return loss
-
-
 def build_base_model(embed_dim, hidden_dim,
                      output_shape=2,
                      num_bs=18,
@@ -338,8 +330,7 @@ def build_model(input_shape,
                 dropout=0.0,
                 bs_masks=None,
                 num_bs=18,
-                norm_size=[120, 60],
-                regularize=False):
+                norm_size=[120, 60]):
 
     assert embed_dim % num_heads == 0
     num_antenna_per_bs = input_shape[0] // num_bs
@@ -368,9 +359,7 @@ def build_model(input_shape,
     y_ = model_wrapper(h)
     y = layers.Lambda(lambda x: x * tf.identity(norm_size), name='pos')(y_)
     model = tf.keras.Model(x, y)
-    if regularize:
-        model.add_loss(uniform_loss(y_))
-        
+
     return model
 
 

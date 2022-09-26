@@ -76,6 +76,16 @@ def compare_loss(pos1, pos2):
     return tf.reduce_mean(loss)
 
 
+def uniform_loss(pos):
+    anchor = tf.cast(tf.linspace(0, 1, 256), pos.dtype)
+    pos = tf.keras.backend.flatten(pos)
+    dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + 1e-5
+    loss = tf.reduce_mean(tf.matmul(tf.nn.softmax(1/dist, -1), dist, transpose_b=True)) +\
+        tf.reduce_mean(tf.matmul(tf.nn.softmax(1/dist, 0), dist, transpose_a=True))
+
+    return loss
+
+
 def train_step(cls, data):
     x, y = data
     with tf.GradientTape() as tape:
@@ -84,7 +94,7 @@ def train_step(cls, data):
         pos_loss = cls.compiled_loss(y, y_pred)
         cmp_loss = compare_loss(y_pred, y_augm)
         reg_loss = cls.losses[0]
-        loss = pos_loss + cmp_loss + reg_loss
+        loss = pos_loss + cmp_loss  # + reg_loss
 
     cls.optimizer.minimize(loss, cls.trainable_variables, tape=tape)
     return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss, 'reg_loss': reg_loss}
@@ -208,11 +218,11 @@ class TrainEngine:
             model = build_model(x_train_shape[1:], 2,
                                 dropout=self.dropout,
                                 bs_masks=self.bs_masks,
-                                regularize=bool(self.regularize),
                                 **self.model_params)
 
             model.save = types.MethodType(save_model, model)
             if self.regularize:
+                model.add_loss(model.get_layer('augment_wrapper').output)
                 model.train_step = types.MethodType(train_step, model)
 
             if pretrained_path is not None:
