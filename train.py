@@ -76,13 +76,21 @@ def compare_loss(pos1, pos2):
     return tf.reduce_mean(loss)
 
 
+# def uniform_loss(pos):
+#     anchor = tf.cast(tf.linspace(0, 1, 256), pos.dtype)
+#     pos = tf.keras.backend.flatten(pos)
+#     dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + 1e-5
+#     loss = tf.reduce_mean(tf.matmul(tf.nn.softmax(1/dist, -1), dist, transpose_b=True)) +\
+#         tf.reduce_mean(tf.matmul(tf.nn.softmax(1/dist, 0), dist, transpose_a=True))
+
+#     return loss
+
+
 def uniform_loss(pos):
     anchor = tf.cast(tf.linspace(0, 1, 256), pos.dtype)
     pos = tf.keras.backend.flatten(pos)
     dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + 1e-5
-    loss = tf.reduce_mean(tf.matmul(tf.nn.softmax(1/dist, -1), dist, transpose_b=True)) +\
-        tf.reduce_mean(tf.matmul(tf.nn.softmax(1/dist, 0), dist, transpose_a=True))
-
+    loss = tf.reduce_sum((tf.nn.softmax(1/dist, axis=0) + tf.nn.softmax(1/dist, 1)) * dist)
     return loss
 
 
@@ -222,7 +230,7 @@ class TrainEngine:
 
             model.save = types.MethodType(save_model, model)
             if self.regularize:
-                #model.add_loss(uniform_loss(model.get_layer('pos').input))
+                model.add_loss(uniform_loss(model.get_layer('pos').input))
                 model.train_step = types.MethodType(train_step, model)
 
             if pretrained_path is not None:

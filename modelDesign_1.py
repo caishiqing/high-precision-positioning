@@ -286,16 +286,6 @@ class MyTimeDistributed(layers.TimeDistributed):
         config['num_bs'] = self.num_bs
         config['min_bs'] = self.min_bs
         return config
-    
-    
-def uniform_loss(pos):
-    anchor = tf.cast(tf.linspace(0, 1, 256), pos.dtype)
-    pos = tf.keras.backend.flatten(pos)
-    dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + 1e-5
-    loss = tf.reduce_mean(tf.matmul(tf.nn.softmax(1/dist, -1), dist, transpose_b=True)) +\
-        tf.reduce_mean(tf.matmul(tf.nn.softmax(1/dist, 0), dist, transpose_a=True))
-
-    return loss
 
 
 def build_base_model(embed_dim, hidden_dim,
@@ -369,7 +359,6 @@ def build_model(input_shape,
     y_ = augment_wrapper(h)
     y = layers.Lambda(lambda x: x * tf.identity(norm_size), name='pos')(y_)
     model = tf.keras.Model(x, y)
-    model.add_loss(uniform_loss(y_))
 
     return model
 
