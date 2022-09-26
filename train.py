@@ -69,10 +69,14 @@ def compare_loss(pos1, pos2):
     p1 = tf.expand_dims(pos1, 1)
     p2 = tf.expand_dims(pos2, 0)
     dist = tf.sqrt(tf.keras.losses.mse(p1, p2) + 1e-9)
-
     label = tf.eye(tf.shape(pos1)[0])
-    logits = -tf.math.log(dist)
-    loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
+    # logits = -tf.math.log(dist)
+    # loss = tf.keras.losses.categorical_crossentropy(label, logits, from_logits=True)
+
+    pd = dist[tf.equal(label, 1)]
+    nd = dist[tf.equal(label, 0)]
+    nd = tf.boolean_mask(nd, tf.less_equal(nd, 1))
+    loss = tf.math.log1p(tf.reduce_sum(pd)) + tf.math.log1p(tf.reduce_sum(1 / nd))
     return tf.reduce_mean(loss)
 
 
@@ -93,7 +97,7 @@ def train_step(cls, data):
         pos_loss = cls.compiled_loss(y, y_pred)
         cmp_loss = compare_loss(y_pred, y_augm)
         reg_loss = cls.losses[0]
-        loss = pos_loss + cmp_loss + reg_loss
+        loss = pos_loss + cmp_loss  # + reg_loss
 
     cls.optimizer.minimize(loss, cls.trainable_variables, tape=tape)
     return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss, 'reg_loss': reg_loss}
