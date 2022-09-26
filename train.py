@@ -76,11 +76,11 @@ def compare_loss(pos1, pos2):
     return tf.reduce_mean(loss)
 
 
-def uniform_loss(pos, anchor_size=1024):
+def uniform_loss(pos, anchor_size=1024, scale=100):
     anchor = tf.cast(tf.linspace(0, 1, anchor_size), pos.dtype)
     pos = tf.keras.backend.flatten(pos)
-    dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + 1e-5
-    loss = tf.reduce_mean(tf.reduce_sum(tf.nn.softmax(1/dist, 0) * dist, axis=0))
+    dist = tf.math.log1p(tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) * scale)
+    loss = tf.reduce_mean(tf.reduce_sum(tf.nn.softmax(-dist, 0) * dist, axis=0))
     return loss
 
 
