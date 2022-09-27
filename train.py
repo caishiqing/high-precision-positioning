@@ -100,8 +100,8 @@ def wasserstein_distance(u, v):
 
 
 def uniform_loss(pos, anchor_size=256):
-    anchor = tf.cast(tf.linspace(0, 1, anchor_size), pos.dtype)
-    pos = tf.keras.backend.flatten(pos)
+    anchor = tf.cast(tf.linspace(0, 1, anchor_size), pos.dtype) + 1e-5
+    pos = tf.keras.backend.flatten(pos) + 1e-5
     dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + 1e-5
     # loss = tf.reduce_sum((tf.nn.softmax(1/dist, 0) + tf.nn.softmax(1/dist, 1)) * dist)
     # dist = wasserstein_distance(anchor, pos)
