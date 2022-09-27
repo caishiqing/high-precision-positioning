@@ -100,14 +100,15 @@ def wasserstein_distance(u, v):
 
 
 def uniform_loss(pos, anchor_size=256, epsilon=1e-5):
-    anchor = tf.cast(tf.linspace(0, 1, anchor_size), pos.dtype) + epsilon
-    pos = tf.keras.backend.flatten(pos) + epsilon
+    anchor = tf.cast(tf.linspace(0, 1, anchor_size), pos.dtype)
+    pos = tf.keras.backend.flatten(pos)
     dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + epsilon
     # loss = tf.reduce_sum((tf.nn.softmax(1/dist, 0) + tf.nn.softmax(1/dist, 1)) * dist)
     # dist = wasserstein_distance(anchor, pos)
     gamma = tf.numpy_function(lambda *args: sinkhorn_stabilized(*args, reg=0.5, stopThr=1e-5, warn=False),
                               inp=[pos, anchor, dist],
                               Tout=tf.float32)
+    gamma /= tf.reduce_sum(gamma)
     loss = tf.reduce_sum(gamma * dist)
     return loss
 
