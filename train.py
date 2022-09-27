@@ -1,6 +1,6 @@
 from modelDesign_1 import build_model
 from optimizer import AdamWarmup
-from ot import sinkhorn
+from ot.bregman import sinkhorn_stabilized
 import tensorflow as tf
 import numpy as np
 import types
@@ -105,7 +105,7 @@ def uniform_loss(pos, anchor_size=256, epsilon=1e-5):
     dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + epsilon
     # loss = tf.reduce_sum((tf.nn.softmax(1/dist, 0) + tf.nn.softmax(1/dist, 1)) * dist)
     # dist = wasserstein_distance(anchor, pos)
-    gamma = tf.numpy_function(lambda *args: sinkhorn(*args, reg=10, stopThr=1e-2, warn=False),
+    gamma = tf.numpy_function(lambda *args: sinkhorn_stabilized(*args, reg=0.5, stopThr=1e-5, warn=False),
                               inp=[pos, anchor, dist],
                               Tout=tf.float32)
     loss = tf.reduce_sum(gamma * dist)
