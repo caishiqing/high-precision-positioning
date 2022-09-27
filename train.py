@@ -80,13 +80,31 @@ def compare_loss(pos1, pos2):
     return tf.reduce_mean(loss)
 
 
-def uniform_loss(pos, anchor_size=256, scale=100):
+def wasserstein_distance(u, v):
+    u_sorter = tf.argsort(u)
+    v_sorter = tf.argsort(v)
+
+    all_values = tf.concat([u, v], axis=-1)
+    sorter = tf.argsort(all_values)
+    all_values = tf.gather(all_values, sorter)
+    delta = all_values[1:] - all_values[:-1]
+
+    u_cdf_indices = tf.searchsorted(tf.gather(u, u_sorter), all_values[:-1], 'right')
+    u_cdf = tf.cast(u_cdf_indices, tf.float32) / tf.cast(tf.shape(u)[0], tf.float32)
+    v_cdf_indices = tf.searchsorted(tf.gather(v, v_sorter), all_values[:-1], 'right')
+    v_cdf = tf.cast(v_cdf_indices, tf.float32) / tf.cast(tf.shape(v)[0], tf.float32)
+
+    dist = tf.reduce_sum(tf.stop_gradient(tf.abs(u_cdf - v_cdf)) * delta)
+    return dist
+
+
+def uniform_loss(pos, anchor_size=256):
     anchor = tf.cast(tf.linspace(0, 1, anchor_size), pos.dtype)
     pos = tf.keras.backend.flatten(pos)
-    dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + 1e-5
-    #loss = tf.reduce_sum(tf.reduce_sum(tf.nn.softmax(1/dist, 0) * dist, axis=0))
-    loss = tf.reduce_sum((tf.nn.softmax(1/dist, 0) + tf.nn.softmax(1/dist, 1)) * dist)
-    return loss
+    # dist = tf.abs(tf.expand_dims(anchor, 0) - tf.expand_dims(pos, 1)) + 1e-5
+    # loss = tf.reduce_sum((tf.nn.softmax(1/dist, 0) + tf.nn.softmax(1/dist, 1)) * dist)
+    dist = wasserstein_distance(anchor, pos)
+    return dist
 
 
 def train_step(cls, data):
@@ -97,7 +115,7 @@ def train_step(cls, data):
         pos_loss = cls.compiled_loss(y, y_pred)
         cmp_loss = compare_loss(y_pred, y_augm)
         reg_loss = cls.losses[0]
-        loss = pos_loss + cmp_loss  # + reg_loss
+        loss = pos_loss + cmp_loss + reg_loss
 
     cls.optimizer.minimize(loss, cls.trainable_variables, tape=tape)
     return {'pos_loss': pos_loss, 'cmp_loss': cmp_loss, 'reg_loss': reg_loss}
